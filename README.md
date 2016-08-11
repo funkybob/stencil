@@ -25,8 +25,9 @@ Boolean condition tests on dotted-lookup expressions.
 ...
 {% endfor %}
 
-Simple look iteration.
+Simple loop iteration.
 
+TODO: Iteration counts
 
 ## Coming soon
 

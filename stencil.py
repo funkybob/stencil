@@ -8,14 +8,7 @@ TOK_TEXT = 'text'
 TOK_VAR = 'var'
 TOK_BLOCK = 'block'
 
-tag_re = re.compile(
-    '|'.join([
-        r'{%\s*(?P<block>.+?)\s*%}',
-        r'{{\s*(?P<var>.+?)\s*}}',
-        r'{#\s*(?P<comment>.+?)\s*#}'
-    ]),
-    re.DOTALL
-)
+tag_re = re.compile( r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
 
 nodename_re = re.compile(r'\w+')
 

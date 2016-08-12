@@ -97,11 +97,9 @@ class Context(object):
 
 
 class Template(object):
-    def __init__(self, src, loader=None):
+    def __init__(self, src):
         self.src = src
         self.tokens = tokenise(src)
-        self.loader = loader
-
         self.nodes = list(self.parse())
 
     def parse(self):

@@ -134,7 +134,7 @@ class Node(object):
         self.content = content
 
     def render(self, context):
-        return ''
+        return u''
 
 
 class TextNode(Node):
@@ -174,8 +174,10 @@ class Nodelist(list):
             node = next(parser.parse())
 
     def render(self, context):
-        for node in self:
-            yield node.render(context)
+        return u''.join(map(unicode, [
+            node.render(context)
+            for node in self
+        ]))
 
 
 class ForNode(BlockNode):
@@ -224,7 +226,7 @@ class IfNode(BlockNode):
 
     def render(self, context):
         if self.test_condition(context):
-            return ''.join(map(unicode, self.nodelist.render(context)))
+            return self.nodelist.render(context)
 
     def test_condition(self, context):
         cond = self.condition.strip()

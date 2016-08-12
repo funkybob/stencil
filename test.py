@@ -8,11 +8,13 @@ filters = {
     'title': unicode.title,
 }
 
+loader = stencil.TemplateLoader(['tmpl/'])
+
 for fn in sorted(glob.glob('tmpl/*.tpl')):
     print fn,
     base, ext = os.path.splitext(fn)
-    with open(fn, 'r') as fin:
-        src = fin.read()
+
+    t = loader.load(os.path.basename(fn))
 
     with open(base + '.out', 'r') as fin:
         out = fin.read()
@@ -21,7 +23,6 @@ for fn in sorted(glob.glob('tmpl/*.tpl')):
         data = json.load(fin)
 
     c = stencil.Context(data, filters)
-    t = stencil.Template(src)
     result = t.render(c)
 
     assert result == out, "Mismatched output for %r\n%r\n%r" % (fn, out, result)

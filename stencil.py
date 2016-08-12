@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import re
 
 from collections import namedtuple
@@ -50,6 +51,21 @@ def tokenise(template):
         yield Token(TOK_TEXT, template[upto:])
 
 
+class TemplateLoader(dict):
+    def __init__(self, paths):
+        self.paths = map(os.path.abspath, paths)
+
+    def load(self, name):
+        for path in self.paths:
+            full_path = os.path.join(path, name)
+            with open(full_path, 'r') as fin:
+                return Template(fin.read(), loader=self)
+
+    def __missing__(self, key):
+        self[key] = tmpl = self.load(key)
+        return tmpl
+
+
 class ContextManager(object):
     def __init__(self, context):
         self.context = context
@@ -97,8 +113,9 @@ class Context(object):
 
 
 class Template(object):
-    def __init__(self, src):
+    def __init__(self, src, loader=None):
         self.src = src
+        self.loader = loader
         self.tokens = tokenise(src)
         self.nodes = list(self.parse())
 
@@ -112,7 +129,7 @@ class Template(object):
                 m = nodename_re.match(token.content)
                 if not m:
                     raise SyntaxError(token)
-                yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):], self)
+                yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
             else:  # TOK_COMMENT
                 pass
 
@@ -220,14 +237,14 @@ class IfNode(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         nodelist = Nodelist(parser, 'endif')
-        return cls(content.strip(), nodelist)
+        return cls(content, nodelist)
 
     def render(self, context):
         if self.test_condition(context):
             return self.nodelist.render(context)
 
     def test_condition(self, context):
-        cond = self.condition.strip()
+        cond = self.condition
         if cond.split(' ', 1)[0].strip() == 'not':
             inv = True
             cond = cond.split(' ', 1)[1].strip()
@@ -238,3 +255,21 @@ class IfNode(BlockNode):
 
 class EndifNode(BlockNode):
     name = 'endif'
+
+
+class IncludeNode(BlockNode):
+    name = 'include'
+
+    def __init__(self, template_name, loader):
+        self.template_name = template_name
+        self.loader = loader
+
+    @classmethod
+    def parse(cls, content, parser):
+        assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
+        return cls(content, parser.loader)
+
+    def render(self, context):
+        tmpl = self.loader[self.template_name]
+        with context.push():
+            return tmpl.render(context)

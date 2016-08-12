@@ -1,7 +1,8 @@
+from __future__ import unicode_literals
+
 import re
 
 from collections import namedtuple
-
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
@@ -9,7 +10,6 @@ TOK_VAR = 'var'
 TOK_BLOCK = 'block'
 
 tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
-
 nodename_re = re.compile(r'\w+')
 
 Token = namedtuple('Token', 'type content')
@@ -39,18 +39,13 @@ def tokenise(template):
 
     for m in tag_re.finditer(template):
         start, end = m.span()
-        # If there's a gap between our start and the end of the last match,
-        # there's a Text node between.
         if upto < start:
             yield Token(TOK_TEXT, template[upto:start])
         upto = end
 
         mode = m.lastgroup
-        content = m.group(mode)
-        yield Token(mode, content.strip())
+        yield Token(mode, m.group(mode).strip())
 
-    # if the last match ended before the end of the source, we have a tail Text
-    # node.
     if upto < len(template):
         yield Token(TOK_TEXT, template[upto:])
 
@@ -125,7 +120,7 @@ class Template(object):
 
     def render(self, context):
         if isinstance(context, dict):
-            context = Context(**context)
+            context = Context(context)
         return u''.join(
             node.render(context) or ''
             for node in self.nodes
@@ -139,7 +134,7 @@ class Node(object):
         self.content = content
 
     def render(self, context):
-        pass
+        return ''
 
 
 class TextNode(Node):
@@ -157,7 +152,7 @@ class VarNode(Node):
 class BlockMeta(type):
     def __new__(mcs, name, bases, attrs):
         cls = super(BlockMeta, mcs).__new__(mcs, name, bases, attrs)
-        if name != 'BlockNode':
+        if 'name' in attrs:
             BlockNode.__tags__[attrs['name']] = cls
         return cls
 
@@ -170,8 +165,17 @@ class BlockNode(Node):
     def parse(cls, content, parser):
         return cls(content)
 
+
+class Nodelist(list):
+    def __init__(self, parser, end):
+        node = next(parser.parse())
+        while node.name != end:
+            self.append(node)
+            node = next(parser.parse())
+
     def render(self, context):
-        return ''
+        for node in self:
+            yield node.render(context)
 
 
 class ForNode(BlockNode):
@@ -190,11 +194,7 @@ class ForNode(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         arg, iterable = content.split(' in ', 1)
-        nodelist = []
-        node = next(parser.parse())
-        while node.name != 'endfor':
-            nodelist.append(node)
-            node = next(parser.parse())
+        nodelist = Nodelist(parser, 'endfor')
         return cls(arg.strip(), iterable.strip(), nodelist)
 
     def render(self, context):
@@ -202,11 +202,8 @@ class ForNode(BlockNode):
         items = []
         for item in iterable:
             with context.push(**{self.argname: item}):
-                items.extend(
-                    node.render(context)
-                    for node in self.nodelist
-                )
-        return ''.join(map(str, items))
+                items.extend(self.nodelist.render(context))
+        return ''.join(map(unicode, items))
 
 
 class EndforNode(BlockNode):
@@ -222,19 +219,12 @@ class IfNode(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        nodelist = []
-        node = next(parser.parse())
-        while node.name != 'endif':
-            nodelist.append(node)
-            node = next(parser.parse())
-        return cls(content, nodelist)
+        nodelist = Nodelist(parser, 'endif')
+        return cls(content.strip(), nodelist)
 
     def render(self, context):
         if self.test_condition(context):
-            return ''.join(map(str, [
-                node.render(context)
-                for node in self.nodelist
-            ]))
+            return ''.join(map(unicode, self.nodelist.render(context)))
 
     def test_condition(self, context):
         cond = self.condition.strip()

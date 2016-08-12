@@ -8,11 +8,11 @@ TOK_TEXT = 'text'
 TOK_VAR = 'var'
 TOK_BLOCK = 'block'
 
-tag_re = re.compile( r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
+tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
 
 nodename_re = re.compile(r'\w+')
 
-Token = namedtuple('Token', 'type content lineno')
+Token = namedtuple('Token', 'type content')
 
 
 def digattr(obj, attr, default=None):
@@ -36,25 +36,23 @@ def digattr(obj, attr, default=None):
 def tokenise(template):
     '''A generator which yields Token instances'''
     upto = 0
-    lineno = 0
 
     for m in tag_re.finditer(template):
         start, end = m.span()
-        lineno = template.count('\n', 0, start) + 1  # Humans count from 1
         # If there's a gap between our start and the end of the last match,
         # there's a Text node between.
         if upto < start:
-            yield Token(TOK_TEXT, template[upto:start], lineno)
+            yield Token(TOK_TEXT, template[upto:start])
         upto = end
 
         mode = m.lastgroup
         content = m.group(mode)
-        yield Token(mode, content.strip(), lineno)
+        yield Token(mode, content.strip())
 
     # if the last match ended before the end of the source, we have a tail Text
     # node.
     if upto < len(template):
-        yield Token(TOK_TEXT, template[upto:], lineno)
+        yield Token(TOK_TEXT, template[upto:])
 
 
 class ContextManager(object):

@@ -59,7 +59,7 @@ No expression support, just simple boolean testing:
     ...
     {% endfor %}
 
-TODO: Iteration counts
+This will also inject a 0-based `loopcounter` into the context.
 
 4. Include
 

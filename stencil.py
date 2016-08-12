@@ -97,6 +97,9 @@ class Context(object):
                 return layer[key]
         raise KeyError(key)
 
+    def __setitem__(self, key, value):
+        self._stack[0][key] = value
+
     def resolve(self, expr):
         '''Resolve an expression which may also have filters'''
         # Parse expr
@@ -218,8 +221,10 @@ class ForNode(BlockNode):
     def render(self, context):
         iterable = context.resolve(self.iterable)
         items = []
-        for item in iterable:
-            with context.push(**{self.argname: item}):
+        with context.push():
+            for idx, item in enumerate(iterable):
+                context['loopcounter'] = idx
+                context[self.argname] = item
                 items.extend(self.nodelist.render(context))
         return ''.join(map(unicode, items))
 

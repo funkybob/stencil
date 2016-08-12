@@ -6,7 +6,7 @@ The goal of Stencil is to provide just enough of a template engine in a single f
 
 ## What it can do
 
-{{ var.from.context }}
+    {{ var.from.context }}
 
 Django style dotted-lookup variables rendering.
 

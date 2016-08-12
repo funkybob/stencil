@@ -58,8 +58,9 @@ class TemplateLoader(dict):
     def load(self, name):
         for path in self.paths:
             full_path = os.path.join(path, name)
-            with open(full_path, 'r') as fin:
-                return Template(fin.read(), loader=self)
+            if os.path.isfile(full_path):
+                with open(full_path, 'r') as fin:
+                    return Template(fin.read(), loader=self)
 
     def __missing__(self, key):
         self[key] = tmpl = self.load(key)

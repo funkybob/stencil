@@ -4,6 +4,9 @@ import json
 
 import stencil
 
+filters = {
+    'title': unicode.title,
+}
 
 for fn in sorted(glob.glob('tmpl/*.tpl')):
     print fn,
@@ -17,7 +20,7 @@ for fn in sorted(glob.glob('tmpl/*.tpl')):
     with open(base + '.json', 'r') as fin:
         data = json.load(fin)
 
-    c = stencil.Context(**data)
+    c = stencil.Context(data, filters)
     t = stencil.Template(src)
     result = t.render(c)
 

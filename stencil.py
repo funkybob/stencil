@@ -67,9 +67,10 @@ class ContextManager(object):
 
 
 class Context(object):
-    def __init__(self, **kwargs):
+    def __init__(self, data, filters=None):
         self._stack = []
-        self.push(**kwargs)
+        self.push(**data)
+        self.filters = filters or {}
 
     def push(self, **kwargs):
         self._stack.insert(0, kwargs)
@@ -83,6 +84,21 @@ class Context(object):
             if key in layer:
                 return layer[key]
         raise KeyError(key)
+
+    def resolve(self, expr):
+        '''Resolve an expression which may also have filters'''
+        # Parse expr
+        parts = expr.split('|')
+        # Resolve in context
+        value = digattr(self, parts.pop(0))
+        for filt in parts:
+            try:
+                func = self.filters[filt]
+            except KeyError:
+                raise SyntaxError("Unknown filter function %s : %s" % (filt, expr))
+            else:
+                value = func(value)
+        return value
 
 
 class Template(object):
@@ -135,10 +151,7 @@ class TextNode(Node):
 class VarNode(Node):
 
     def render(self, context):
-        # Parse expr
-        # Resolve in context
-        value = digattr(context, self.content)
-        return value
+        return context.resolve(self.content)
 
 
 class BlockMeta(type):
@@ -185,7 +198,7 @@ class ForNode(BlockNode):
         return cls(arg.strip(), iterable.strip(), nodelist)
 
     def render(self, context):
-        iterable = digattr(context, self.iterable)
+        iterable = context.resolve(self.iterable)
         items = []
         for item in iterable:
             with context.push(**{self.argname: item}):
@@ -230,7 +243,7 @@ class IfNode(BlockNode):
             cond = cond.split(' ', 1)[1].strip()
         else:
             inv = False
-        return inv ^ bool(digattr(context, cond))
+        return inv ^ bool(context.resolve(cond))
 
 
 class EndifNode(BlockNode):

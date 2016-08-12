@@ -5,7 +5,7 @@ import json
 import stencil
 
 
-for fn in glob.glob('tmpl/*.tpl'):
+for fn in sorted(glob.glob('tmpl/*.tpl')):
     print fn,
     base, ext = os.path.splitext(fn)
     with open(fn, 'r') as fin:

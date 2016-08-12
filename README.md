@@ -13,17 +13,16 @@ Django style dotted-lookup variables rendering.
 TODO: Filters
 
 
-{% if condition %}
-{% if not condition %}
-
-...
-{% endif %}
+    {% if condition %}
+    {% if not condition %}
+    ...
+    {% endif %}
 
 Boolean condition tests on dotted-lookup expressions.
 
-{% for x in y %}
-...
-{% endfor %}
+    {% for x in y %}
+    ...
+    {% endfor %}
 
 Simple loop iteration.
 
@@ -31,6 +30,7 @@ TODO: Iteration counts
 
 ## Coming soon
 
-{% extends %} / {% block %}
+    {% extends %}
+    {% block %}...{% endblock %}
 
 Allowing template inheritance.

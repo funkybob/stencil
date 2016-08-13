@@ -104,19 +104,20 @@ class Expression(object):
     def __init__(self, expr):
         parts = expr.split('|')
         self.var = parts[0]
-        self.filters = parts[1:]
+        filters = parts[1:]
+        self.filters = []
+        for filt in filters:
+            bits = filt.split(':', 1)
+            args = bits[1].split(',') if len(bits) > 1 else []
+            self.filters.append((bits[0], args))
 
     def resolve(self, context):
         value = self.resolve_lookup(context, self.var)
 
-        for filt in self.filters:
-            bits = filt.split(':')
-            if len(bits) > 1:
-                args = [self.resolve_lookup(context, bit) for bit in bits[1].split(',')]
-            else:
-                args = []
+        for filt, args in self.filters:
+            args = [self.resolve_lookup(arg) for arg in args]
             try:
-                func = context.filters[bits[0]]
+                func = context.filters[filt]
             except KeyError:
                 raise SyntaxError("Unknown filter function %s : %s -> %s" % (filt, self.var, self.filters))
             else:

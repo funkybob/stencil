@@ -15,12 +15,10 @@ TOK_BLOCK = 'block'
 
 tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
 nodename_re = re.compile(r'\w+')
-
 Token = namedtuple('Token', 'type content')
 
 
 def tokenise(template):
-    '''A generator which yields Token instances'''
     upto = 0
 
     for m in tag_re.finditer(template):
@@ -120,13 +118,13 @@ class Expression(object):
             try:
                 func = context.filters[bits[0]]
             except KeyError:
-                raise SyntaxError("Unknown filter function %s : %s" % (filt, expr))
+                raise SyntaxError("Unknown filter function %s : %s -> %s" % (filt, self.var, self.filters))
             else:
                 value = func(value, *args)
         return value
 
     def resolve_lookup(self, context, key, default=''):
-        parts= iter(key.split('.'))
+        parts = iter(key.split('.'))
         try:
             obj = context[next(parts)]
         except KeyError:
@@ -145,6 +143,7 @@ class Expression(object):
             if callable(obj):
                 obj = obj()
         return obj
+
 
 class Node(object):
     name = None
@@ -200,11 +199,6 @@ class Nodelist(list):
 
 
 class ForTag(BlockNode):
-    '''
-    {% for value in iterable %}
-    ...
-    {% endfor %}
-    '''
     name = 'for'
 
     def __init__(self, argname, iterable, nodelist):
@@ -286,6 +280,7 @@ class IncludeTag(BlockNode):
 
 class LoadTag(BlockNode):
     name = 'load'
+
     def __init__(self, module):
         self.module = module
 

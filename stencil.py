@@ -1,9 +1,13 @@
 from __future__ import unicode_literals
 
+import importlib
+
+import io
 import os
 import re
 
 from collections import namedtuple
+from io import StringIO
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
@@ -59,23 +63,12 @@ class TemplateLoader(dict):
         for path in self.paths:
             full_path = os.path.join(path, name)
             if os.path.isfile(full_path):
-                with open(full_path, 'r') as fin:
+                with io.open(full_path, 'r') as fin:
                     return Template(fin.read(), loader=self)
 
     def __missing__(self, key):
         self[key] = tmpl = self.load(key)
         return tmpl
-
-
-class ContextManager(object):
-    def __init__(self, context):
-        self.context = context
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, *args, **kwargs):
-        self.context.pop()
 
 
 class Context(object):
@@ -86,7 +79,6 @@ class Context(object):
 
     def push(self, **kwargs):
         self._stack.insert(0, kwargs)
-        return ContextManager(self)
 
     def pop(self):
         self._stack.pop(0)
@@ -105,6 +97,7 @@ class Context(object):
         # Parse expr
         parts = expr.split('|')
         # Resolve in context
+        # XXX Make sure first level lookup is ALWAYS dict
         value = digattr(self, parts.pop(0))
         for filt in parts:
             try:
@@ -126,9 +119,9 @@ class Template(object):
     def parse(self):
         for token in self.tokens:
             if token.type == TOK_TEXT:
-                yield TextNode(token.content)
+                yield TextTag(token.content)
             elif token.type == TOK_VAR:
-                yield VarNode(token.content)
+                yield VarTag(token.content)
             elif token.type == TOK_BLOCK:
                 m = nodename_re.match(token.content)
                 if not m:
@@ -140,10 +133,10 @@ class Template(object):
     def render(self, context):
         if isinstance(context, dict):
             context = Context(context)
-        return u''.join(
-            node.render(context) or ''
-            for node in self.nodes
-        )
+        context.output = output = StringIO()
+        for node in self.nodes:
+            output.write(node.render(context))
+        return output.getvalue()
 
 
 class Node(object):
@@ -153,19 +146,19 @@ class Node(object):
         self.content = content
 
     def render(self, context):
-        return u''
+        return ''
 
 
-class TextNode(Node):
+class TextTag(Node):
 
     def render(self, context):
         return self.content
 
 
-class VarNode(Node):
+class VarTag(Node):
 
     def render(self, context):
-        return context.resolve(self.content)
+        return unicode(context.resolve(self.content))
 
 
 class BlockMeta(type):
@@ -193,13 +186,11 @@ class Nodelist(list):
             node = next(parser.parse())
 
     def render(self, context):
-        return u''.join(map(unicode, [
-            node.render(context)
-            for node in self
-        ]))
+        for node in self:
+            context.output.write(node.render(context))
 
 
-class ForNode(BlockNode):
+class ForTag(BlockNode):
     '''
     {% for value in iterable %}
     ...
@@ -220,20 +211,20 @@ class ForNode(BlockNode):
 
     def render(self, context):
         iterable = context.resolve(self.iterable)
-        items = []
-        with context.push():
-            for idx, item in enumerate(iterable):
-                context['loopcounter'] = idx
-                context[self.argname] = item
-                items.extend(self.nodelist.render(context))
-        return ''.join(map(unicode, items))
+        context.push()
+        for idx, item in enumerate(iterable):
+            context['loopcounter'] = idx
+            context[self.argname] = item
+            self.nodelist.render(context)
+        context.pop()
+        return ''
 
 
-class EndforNode(BlockNode):
+class EndforTag(BlockNode):
     name = 'endfor'
 
 
-class IfNode(BlockNode):
+class IfTag(BlockNode):
     name = 'if'
 
     def __init__(self, condition, nodelist):
@@ -247,7 +238,8 @@ class IfNode(BlockNode):
 
     def render(self, context):
         if self.test_condition(context):
-            return self.nodelist.render(context)
+            self.nodelist.render(context)
+        return ''
 
     def test_condition(self, context):
         cond = self.condition
@@ -259,11 +251,11 @@ class IfNode(BlockNode):
         return inv ^ bool(context.resolve(cond))
 
 
-class EndifNode(BlockNode):
+class EndifTag(BlockNode):
     name = 'endif'
 
 
-class IncludeNode(BlockNode):
+class IncludeTag(BlockNode):
     name = 'include'
 
     def __init__(self, template_name, loader):
@@ -277,5 +269,15 @@ class IncludeNode(BlockNode):
 
     def render(self, context):
         tmpl = self.loader[self.template_name]
-        with context.push():
-            return tmpl.render(context)
+        context.push()
+        output = tmpl.render(context)
+        context.pop()
+        return output
+
+
+class LoadTag(BlockNode):
+    name = 'load'
+
+    def render(self, context):
+        module = importlib.load_module(self.content)
+        return getattr(module, 'init', lambda x: '')(context)

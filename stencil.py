@@ -78,7 +78,7 @@ class Context(object):
         self.filters = filters or {}
 
     def push(self, **kwargs):
-        self._stack.pushleft(kwargs)
+        self._stack.appendleft(kwargs)
 
     def pop(self):
         self._stack.popleft()

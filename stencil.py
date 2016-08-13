@@ -95,7 +95,7 @@ class Context(object):
         '''Resolve an expression which may also have filters'''
         assert isinstance(expr, Expression)
         # XXX Make sure first level lookup is ALWAYS dict
-        value = digattr(self, expr.var)
+        value = digattr(self, expr.var, '')
         for filt in expr.filters:
             try:
                 func = self.filters[filt]
@@ -281,7 +281,13 @@ class IncludeTag(BlockNode):
 
 class LoadTag(BlockNode):
     name = 'load'
+    def __init__(self, module):
+        self.module = module
+
+    @classmethod
+    def parse(cls, content, parser):
+        module = importlib.import_module(content)
+        return cls(module)
 
     def render(self, context):
-        module = importlib.load_module(self.content)
-        return getattr(module, 'init', lambda x: '')(context)
+        return getattr(self.module, 'init', lambda x: '')(context)

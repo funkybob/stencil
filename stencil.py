@@ -6,7 +6,7 @@ import io
 import os
 import re
 
-from collections import namedtuple
+from collections import namedtuple, deque
 from io import StringIO
 
 TOK_COMMENT = 'comment'
@@ -73,15 +73,15 @@ class TemplateLoader(dict):
 
 class Context(object):
     def __init__(self, data, filters=None):
-        self._stack = []
+        self._stack = deque()
         self.push(**data)
         self.filters = filters or {}
 
     def push(self, **kwargs):
-        self._stack.insert(0, kwargs)
+        self._stack.pushleft(kwargs)
 
     def pop(self):
-        self._stack.pop(0)
+        self._stack.popleft()
 
     def __getitem__(self, key):
         for layer in self._stack:
@@ -95,10 +95,10 @@ class Context(object):
     def resolve(self, expr):
         '''Resolve an expression which may also have filters'''
         # Parse expr
-        parts = expr.split('|')
+        parts = iter(expr.split('|'))
         # Resolve in context
         # XXX Make sure first level lookup is ALWAYS dict
-        value = digattr(self, parts.pop(0))
+        value = digattr(self, next(parts))
         for filt in parts:
             try:
                 func = self.filters[filt]

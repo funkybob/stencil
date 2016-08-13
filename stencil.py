@@ -124,8 +124,6 @@ class Template(object):
                 if not m:
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
-            else:  # TOK_COMMENT
-                pass
 
     def render(self, context):
         if isinstance(context, dict):
@@ -150,7 +148,7 @@ class Node(object):
         self.content = content
 
     def render(self, context):
-        return ''
+        return ''  # pragma: no cover
 
 
 class TextTag(Node):

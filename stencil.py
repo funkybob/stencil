@@ -7,7 +7,6 @@ import os
 import re
 
 from collections import namedtuple, deque
-from io import StringIO
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
@@ -94,12 +93,10 @@ class Context(object):
 
     def resolve(self, expr):
         '''Resolve an expression which may also have filters'''
-        # Parse expr
-        parts = iter(expr.split('|'))
-        # Resolve in context
+        assert isinstance(expr, Expression)
         # XXX Make sure first level lookup is ALWAYS dict
-        value = digattr(self, next(parts))
-        for filt in parts:
+        value = digattr(self, expr.var)
+        for filt in expr.filters:
             try:
                 func = self.filters[filt]
             except KeyError:
@@ -133,10 +130,17 @@ class Template(object):
     def render(self, context):
         if isinstance(context, dict):
             context = Context(context)
-        context.output = output = StringIO()
+        context.output = output = io.StringIO()
         for node in self.nodes:
             output.write(node.render(context))
         return output.getvalue()
+
+
+class Expression(object):
+    def __init__(self, expr):
+        parts = expr.split('|')
+        self.var = parts[0]
+        self.filters = parts[1:]
 
 
 class Node(object):
@@ -156,9 +160,11 @@ class TextTag(Node):
 
 
 class VarTag(Node):
+    def __init__(self, content):
+        self.expr = Expression(content)
 
     def render(self, context):
-        return unicode(context.resolve(self.content))
+        return unicode(context.resolve(self.expr))
 
 
 class BlockMeta(type):
@@ -200,7 +206,7 @@ class ForTag(BlockNode):
 
     def __init__(self, argname, iterable, nodelist):
         self.argname = argname
-        self.iterable = iterable
+        self.iterable = Expression(iterable)
         self.nodelist = nodelist
 
     @classmethod
@@ -228,7 +234,13 @@ class IfTag(BlockNode):
     name = 'if'
 
     def __init__(self, condition, nodelist):
-        self.condition = condition
+        if condition.split(' ', 1)[0].strip() == 'not':
+            inv = True
+            condition = condition.split(' ', 1)[1].strip()
+        else:
+            inv = False
+        self.inv = inv
+        self.condition = Expression(condition)
         self.nodelist = nodelist
 
     @classmethod
@@ -242,13 +254,7 @@ class IfTag(BlockNode):
         return ''
 
     def test_condition(self, context):
-        cond = self.condition
-        if cond.split(' ', 1)[0].strip() == 'not':
-            inv = True
-            cond = cond.split(' ', 1)[1].strip()
-        else:
-            inv = False
-        return inv ^ bool(context.resolve(cond))
+        return self.inv ^ bool(context.resolve(self.condition))
 
 
 class EndifTag(BlockNode):

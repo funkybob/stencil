@@ -19,24 +19,6 @@ nodename_re = re.compile(r'\w+')
 Token = namedtuple('Token', 'type content')
 
 
-def digattr(obj, attr, default=None):
-    '''Perform template-style dotted lookup'''
-    for step in attr.split('.'):
-        try:    # dict lookup
-            obj = obj[step]
-        except (TypeError, AttributeError, KeyError):
-            try:    # attribute lookup
-                obj = getattr(obj, step)
-            except (TypeError, AttributeError):
-                try:    # list index lookup
-                    obj = obj[int(step)]
-                except (IndexError, ValueError, KeyError, TypeError):
-                    return default
-        if callable(obj):
-            obj = obj()
-    return obj
-
-
 def tokenise(template):
     '''A generator which yields Token instances'''
     upto = 0
@@ -91,20 +73,6 @@ class Context(object):
     def __setitem__(self, key, value):
         self._stack[0][key] = value
 
-    def resolve(self, expr):
-        '''Resolve an expression which may also have filters'''
-        assert isinstance(expr, Expression)
-        # XXX Make sure first level lookup is ALWAYS dict
-        value = digattr(self, expr.var, '')
-        for filt in expr.filters:
-            try:
-                func = self.filters[filt]
-            except KeyError:
-                raise SyntaxError("Unknown filter function %s : %s" % (filt, expr))
-            else:
-                value = func(value)
-        return value
-
 
 class Template(object):
     def __init__(self, src, loader=None):
@@ -140,6 +108,43 @@ class Expression(object):
         self.var = parts[0]
         self.filters = parts[1:]
 
+    def resolve(self, context):
+        value = self.resolve_lookup(context, self.var)
+
+        for filt in self.filters:
+            bits = filt.split(':')
+            if len(bits) > 1:
+                args = [self.resolve_lookup(context, bit) for bit in bits[1].split(',')]
+            else:
+                args = []
+            try:
+                func = context.filters[bits[0]]
+            except KeyError:
+                raise SyntaxError("Unknown filter function %s : %s" % (filt, expr))
+            else:
+                value = func(value, *args)
+        return value
+
+    def resolve_lookup(self, context, key, default=''):
+        parts= iter(key.split('.'))
+        try:
+            obj = context[next(parts)]
+        except KeyError:
+            return default
+        for step in parts:
+            try:    # dict lookup
+                obj = obj[step]
+            except (TypeError, AttributeError, KeyError):
+                try:    # attribute lookup
+                    obj = getattr(obj, step)
+                except (TypeError, AttributeError):
+                    try:    # list index lookup
+                        obj = obj[int(step)]
+                    except (IndexError, ValueError, KeyError, TypeError):
+                        return default
+            if callable(obj):
+                obj = obj()
+        return obj
 
 class Node(object):
     name = None
@@ -162,7 +167,7 @@ class VarTag(Node):
         self.expr = Expression(content)
 
     def render(self, context):
-        return unicode(context.resolve(self.expr))
+        return unicode(self.expr.resolve(context))
 
 
 class BlockMeta(type):
@@ -214,7 +219,7 @@ class ForTag(BlockNode):
         return cls(arg.strip(), iterable.strip(), nodelist)
 
     def render(self, context):
-        iterable = context.resolve(self.iterable)
+        iterable = self.iterable.resolve(context)
         context.push()
         for idx, item in enumerate(iterable):
             context['loopcounter'] = idx
@@ -252,7 +257,7 @@ class IfTag(BlockNode):
         return ''
 
     def test_condition(self, context):
-        return self.inv ^ bool(context.resolve(self.condition))
+        return self.inv ^ bool(self.condition.resolve(context))
 
 
 class EndifTag(BlockNode):

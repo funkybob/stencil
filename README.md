@@ -40,6 +40,9 @@ Filters are also supported, if passed to the Context.
 
     {{ foo.bar|escape }}
 
+Filers can take an arbitrary number of arguments:
+
+    {{ foo.bar|mangle:foo.baz,quz,wibble.pencil }}
 
 2. If conditions
 
@@ -65,11 +68,18 @@ This will also inject a 0-based `loopcounter` into the context.
 
     {% include other.tpl %}
 
+
 Note: the template using include must be loaded using a TemplateLoader.
+
+5. Load
+
+    {% load libname %}
+
+Additional tag types can be loaded.
 
 ## Coming soon
 
-5. Template inheritance
+6. Template inheritance
 
     {% extends %}
     {% block %}...{% endblock %}

@@ -1,0 +1,5 @@
+{
+    "top": "hat",
+    "map": {"key": "value"},
+    "sequence": ["zero", "one", "two", "three"]
+}

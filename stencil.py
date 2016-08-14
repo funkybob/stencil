@@ -270,7 +270,7 @@ class IncludeTag(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
-        bits = filter(None, (bit.strip() for bit in content.split(' ')))
+        bits = content.split()
         kwargs = {}
         for kwarg in bits[1:]:
             key, expr = kwarg.split('=')
@@ -279,10 +279,7 @@ class IncludeTag(BlockNode):
 
     def render(self, context):
         tmpl = self.loader[self.template_name]
-        kwargs = {
-            key: expr.resolve(context)
-            for key, expr in self.kwargs.items()
-        }
+        kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
         context.push(**kwargs)
         output = tmpl.render(context)
         context.pop()

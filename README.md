@@ -8,14 +8,15 @@ The goal of Stencil is to provide just enough of a template engine in a single f
 
 1. Make a directory for our templates:
 
-    $ mkdir tmpl
+        $ mkdir tmpl
 
-1. Create a simple template:
+2. Create a simple template:
 
-    Good morning, {{ name }}!
+        Good morning, {{ name }}!
 
-1. Write a script to use it
-
+3. Write a script to use it
+    
+    ```python
     import stencil
 
     from .utils import escape
@@ -27,62 +28,61 @@ The goal of Stencil is to provide just enough of a template engine in a single f
 
     print t.render(c)
     # Should output "Good morning, Rupprect!"
+    ```
 
 ## What it can do
 
 1. Variable rendering
 
-    {{ var.from.context }}
-
-Django style dotted-lookup variables rendering.
-
-Filters are also supported, if passed to the Context.
-
-    {{ foo.bar|escape }}
-
-Filers can take an arbitrary number of arguments:
-
-    {{ foo.bar|mangle:foo.baz,quz,wibble.pencil }}
+        {{ var.from.context }}
+    
+    Django style dotted-lookup variables rendering.
+    Filters are also supported, if passed to the Context.
+    
+        {{ foo.bar|escape }}
+    
+    Filters can take an arbitrary number of arguments:
+    
+        {{ foo.bar|mangle:foo.baz,quz,wibble.pencil }}
 
 2. If conditions
 
-No expression support, just simple boolean testing:
-
-    {% if condition %}
-    ...
-    {% endif %}
-    {% if not condition %}
-    ...
-    {% endif %}
-
+    No expression support, just simple boolean testing:
+    
+        {% if condition %}
+        ...
+        {% endif %}
+        {% if not condition %}
+        ...
+        {% endif %}
+    
 
 3. For loops
 
-    {% for x in y %}
-    ...
-    {% endfor %}
 
-This will also inject a 0-based `loopcounter` into the context.
+        {% for x in y %}
+        ...
+        {% endfor %}
+        
+    This will also inject a 0-based `loopcounter` into the context.
 
 4. Include
 
-    {% include other.tpl %}
-
-Note: the template using include must be loaded using a TemplateLoader.
-
-You can also add extra values to the context for the included template:
-
-    {% include other.tpl key=value other=some.thing|woo %}
+        {% include other.tpl %}
+        
+    Note: the template using include must be loaded using a TemplateLoader.
+    You can also add extra values to the context for the included template:
+    
+        {% include other.tpl key=value other=some.thing|woo %}
 
 5. Load
 
-    {% load libname %}
-
-Additional tag types can be loaded.
-
-Custom block tags can be written by extending ``stencil.BlockNode``.
-
-
+        {% load libname %}
+        
+    Additional tag types can be loaded.
+    Custom block tags can be written by extending ``stencil.BlockNode``.
+    
+    ```python
     class MyTag(BlockNode):
         name = 'foo'  # The name matched in {% %}
 
@@ -98,3 +98,4 @@ Custom block tags can be written by extending ``stencil.BlockNode``.
             Render your tag, and write it to the file-like `output`
             '''
             ...
+    ```

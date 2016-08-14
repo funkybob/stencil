@@ -68,8 +68,11 @@ This will also inject a 0-based `loopcounter` into the context.
 
     {% include other.tpl %}
 
-
 Note: the template using include must be loaded using a TemplateLoader.
+
+You can also add extra values to the context for the included template:
+
+    {% include other.tpl key=value other=some.thing|woo %}
 
 5. Load
 

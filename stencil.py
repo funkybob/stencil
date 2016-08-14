@@ -262,18 +262,28 @@ class EndifTag(BlockNode):
 class IncludeTag(BlockNode):
     name = 'include'
 
-    def __init__(self, template_name, loader):
+    def __init__(self, template_name, kwargs, loader):
         self.template_name = template_name
+        self.kwargs = kwargs
         self.loader = loader
 
     @classmethod
     def parse(cls, content, parser):
         assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
-        return cls(content, parser.loader)
+        bits = filter(None, (bit.strip() for bit in content.split(' ')))
+        kwargs = {}
+        for kwarg in bits[1:]:
+            key, expr = kwarg.split('=')
+            kwargs[key] = Expression(expr)
+        return cls(bits[0], kwargs, parser.loader)
 
     def render(self, context):
         tmpl = self.loader[self.template_name]
-        context.push()
+        kwargs = {
+            key: expr.resolve(context)
+            for key, expr in self.kwargs.items()
+        }
+        context.push(**kwargs)
         output = tmpl.render(context)
         context.pop()
         return output

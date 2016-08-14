@@ -80,9 +80,21 @@ You can also add extra values to the context for the included template:
 
 Additional tag types can be loaded.
 
-## Coming soon
+Custom block tags can be written by extending ``stencil.BlockNode``.
 
-6. Template inheritance
 
-    {% extends %}
-    {% block %}...{% endblock %}
+    class MyTag(BlockNode):
+        name = 'foo'  # The name matched in {% %}
+
+        @classmethod
+        def parse(cls, content, parser):
+            '''
+            Parse the string between "{% foo " and "%}"
+            '''
+            ...
+
+        def render(self, context, output):
+            '''
+            Render your tag, and write it to the file-like `output`
+            '''
+            ...

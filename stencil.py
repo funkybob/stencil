@@ -52,7 +52,7 @@ class TemplateLoader(dict):
 
 class Context(object):
     def __init__(self, data, filters=None):
-        self._stack = deque()
+        self._stack = deque({'True': True, 'False': False, 'None': None})
         self.push(**data)
         self.filters = filters or {}
 

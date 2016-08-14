@@ -74,7 +74,6 @@ class Context(object):
 
 class Template(object):
     def __init__(self, src, loader=None):
-        self.src = src
         self.loader = loader
         self.tokens = tokenise(src)
         self.nodes = list(self.parse())
@@ -105,9 +104,8 @@ class Expression(object):
     def __init__(self, expr):
         parts = expr.split('|')
         self.var = parts[0]
-        filters = parts[1:]
         self.filters = []
-        for filt in filters:
+        for filt in parts[1:]:
             bits = filt.split(':', 1)
             args = bits[1].split(',') if len(bits) > 1 else []
             self.filters.append((bits[0], args))
@@ -232,12 +230,8 @@ class IfTag(BlockNode):
     name = 'if'
 
     def __init__(self, condition, nodelist):
-        if condition.split(' ', 1)[0].strip() == 'not':
-            inv = True
-            condition = condition.split(' ', 1)[1].strip()
-        else:
-            inv = False
-        self.inv = inv
+        condition, inv = re.subn(r'^not\s+', '', condition)
+        self.inv = bool(inv)
         self.condition = Expression(condition)
         self.nodelist = nodelist
 

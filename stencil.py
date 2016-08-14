@@ -154,7 +154,7 @@ class Node(object):
         self.content = content
 
     def render(self, context, output):
-        pass # pragma: no cover
+        pass  # pragma: no cover
 
 
 class TextTag(Node):

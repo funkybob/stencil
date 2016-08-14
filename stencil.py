@@ -91,12 +91,13 @@ class Template(object):
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
 
-    def render(self, context):
+    def render(self, context, output=None):
         if isinstance(context, dict):
             context = Context(context)
-        context.output = output = io.StringIO()
+        if output is None:
+            output = output = io.StringIO()
         for node in self.nodes:
-            output.write(node.render(context))
+            node.render(context, output)
         return output.getvalue()
 
 
@@ -152,22 +153,22 @@ class Node(object):
     def __init__(self, content):
         self.content = content
 
-    def render(self, context):
-        return ''  # pragma: no cover
+    def render(self, context, output):
+        pass # pragma: no cover
 
 
 class TextTag(Node):
 
-    def render(self, context):
-        return self.content
+    def render(self, context, output):
+        output.write(self.content)
 
 
 class VarTag(Node):
     def __init__(self, content):
         self.expr = Expression(content)
 
-    def render(self, context):
-        return unicode(self.expr.resolve(context))
+    def render(self, context, output):
+        output.write(unicode(self.expr.resolve(context)))
 
 
 class BlockMeta(type):
@@ -194,9 +195,9 @@ class Nodelist(list):
             self.append(node)
             node = next(parser.parse())
 
-    def render(self, context):
+    def render(self, context, output):
         for node in self:
-            context.output.write(node.render(context))
+            node.render(context, output)
 
 
 class ForTag(BlockNode):
@@ -213,15 +214,14 @@ class ForTag(BlockNode):
         nodelist = Nodelist(parser, 'endfor')
         return cls(arg.strip(), iterable.strip(), nodelist)
 
-    def render(self, context):
+    def render(self, context, output):
         iterable = self.iterable.resolve(context)
         context.push()
         for idx, item in enumerate(iterable):
             context['loopcounter'] = idx
             context[self.argname] = item
-            self.nodelist.render(context)
+            self.nodelist.render(context, output)
         context.pop()
-        return ''
 
 
 class EndforTag(BlockNode):
@@ -246,10 +246,9 @@ class IfTag(BlockNode):
         nodelist = Nodelist(parser, 'endif')
         return cls(content, nodelist)
 
-    def render(self, context):
+    def render(self, context, output):
         if self.test_condition(context):
-            self.nodelist.render(context)
-        return ''
+            self.nodelist.render(context, output)
 
     def test_condition(self, context):
         return self.inv ^ bool(self.condition.resolve(context))
@@ -277,13 +276,12 @@ class IncludeTag(BlockNode):
             kwargs[key] = Expression(expr)
         return cls(bits[0], kwargs, parser.loader)
 
-    def render(self, context):
+    def render(self, context, output):
         tmpl = self.loader[self.template_name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
         context.push(**kwargs)
-        output = tmpl.render(context)
+        tmpl.render(context, output)
         context.pop()
-        return output
 
 
 class LoadTag(BlockNode):
@@ -296,6 +294,3 @@ class LoadTag(BlockNode):
     def parse(cls, content, parser):
         module = importlib.import_module(content)
         return cls(module)
-
-    def render(self, context):
-        return getattr(self.module, 'init', lambda x: '')(context)

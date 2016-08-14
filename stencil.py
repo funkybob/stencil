@@ -103,11 +103,11 @@ class Template(object):
 class Expression(object):
     def __init__(self, expr):
         parts = expr.split('|')
-        self.var = parts[0]
+        self.var = parts[0].split('.')
         self.filters = []
         for filt in parts[1:]:
             bits = filt.split(':', 1)
-            args = bits[1].split(',') if len(bits) > 1 else []
+            args = [arg.split('.') for arg in bits[1].split(',')] if len(bits) > 1 else []
             self.filters.append((bits[0], args))
 
     def resolve(self, context):
@@ -124,7 +124,7 @@ class Expression(object):
         return value
 
     def resolve_lookup(self, context, key, default=''):
-        parts = iter(key.split('.'))
+        parts = iter(key)
         try:
             obj = context[next(parts)]
         except KeyError:

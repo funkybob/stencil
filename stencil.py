@@ -187,11 +187,12 @@ class BlockNode(Node):
 
 
 class Nodelist(list):
-    def __init__(self, parser, end):
+    def __init__(self, parser, ends):
         node = next(parser.parse())
-        while node.name != end:
+        while node.name not in ends:
             self.append(node)
             node = next(parser.parse())
+        self.endnode = node
 
     def render(self, context, output):
         for node in self:
@@ -201,25 +202,37 @@ class Nodelist(list):
 class ForTag(BlockNode):
     name = 'for'
 
-    def __init__(self, argname, iterable, nodelist):
+    def __init__(self, argname, iterable, nodelist, elselist):
         self.argname = argname
         self.iterable = Expression(iterable)
         self.nodelist = nodelist
+        self.elselist = elselist
 
     @classmethod
     def parse(cls, content, parser):
         arg, iterable = content.split(' in ', 1)
-        nodelist = Nodelist(parser, 'endfor')
-        return cls(arg.strip(), iterable.strip(), nodelist)
+        nodelist = Nodelist(parser, ['endfor', 'else'])
+        if nodelist.endnode.name == 'else':
+            elselist = Nodelist(parser, ['endfor'])
+        else:
+            elselist = None
+        return cls(arg.strip(), iterable.strip(), nodelist, elselist)
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
         context.push()
-        for idx, item in enumerate(iterable):
-            context['loopcounter'] = idx
-            context[self.argname] = item
-            self.nodelist.render(context, output)
+        if self.elselist and not self.iterable:
+            self.elselist.render(context, output)
+        else:
+            for idx, item in enumerate(iterable):
+                context['loopcounter'] = idx
+                context[self.argname] = item
+                self.nodelist.render(context, output)
         context.pop()
+
+
+class ElseTag(BlockNode):
+    name = 'else'
 
 
 class EndforTag(BlockNode):
@@ -229,20 +242,27 @@ class EndforTag(BlockNode):
 class IfTag(BlockNode):
     name = 'if'
 
-    def __init__(self, condition, nodelist):
+    def __init__(self, condition, nodelist, elselist):
         condition, inv = re.subn(r'^not\s+', '', condition)
         self.inv = bool(inv)
         self.condition = Expression(condition)
         self.nodelist = nodelist
+        self.elselist = elselist
 
     @classmethod
     def parse(cls, content, parser):
-        nodelist = Nodelist(parser, 'endif')
-        return cls(content, nodelist)
+        nodelist = Nodelist(parser, ['endif', 'else'])
+        if nodelist.endnode.name == 'else':
+            elselist = Nodelist(parser, ['endif'])
+        else:
+            elselist = None
+        return cls(content, nodelist, elselist)
 
     def render(self, context, output):
         if self.test_condition(context):
             self.nodelist.render(context, output)
+        elif self.elselist:
+            self.elselist.render(context, output)
 
     def test_condition(self, context):
         return self.inv ^ bool(self.condition.resolve(context))

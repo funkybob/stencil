@@ -5,7 +5,7 @@ A minimalist template engine for Python
 
 The goal of Stencil is to provide just enough of a template engine in a single file.
 
-Currently weighs in at under 300 LoC
+Currently weighs in at around 300 LoC
 
 Quick Start
 -----------
@@ -74,6 +74,15 @@ What it can do
       ...
       {% endif %}
 
+   Also, else conditions:
+
+   .. code-block:: html
+
+      {% if condition %}
+      ...
+      {% else %}
+      ...
+      {% endif %}
 
 3. For loops
 
@@ -84,6 +93,17 @@ What it can do
       {% endfor %}
 
    This will also inject a 0-based `loopcounter` into the context.
+
+   Additionally, an 'else' clause can be included for when the iterable is
+   empty:
+
+   .. code-block:: html
+
+      {% for x in y %}
+      ...
+      {% else %}
+      ...
+      {% endfor %}
 
 4. Include
 

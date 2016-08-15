@@ -126,3 +126,18 @@ What it can do
               Render your tag, and write it to the file-like `output`
               '''
               ...
+
+
+Python 3
+--------
+
+Because of requirements, this project was written as Python2 compatible only.
+
+For Python3 I would have used knights-templater and never tried this project at
+all.
+
+Currently to make this work on Python3 the steps are:
+
+1. Replace "unicode" with "str"
+2. Wrap the one use of map() with list()
+3. Change the syntax for the one use of __metaclass__

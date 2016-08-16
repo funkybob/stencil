@@ -7,7 +7,6 @@ class Int(object):
         return int(key)
 
 
-
 class _float(float):
     def __getitem__(self, key):
         return self + (float(key) / 10 ** len(key))

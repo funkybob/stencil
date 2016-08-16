@@ -94,7 +94,7 @@ class Template(object):
         if isinstance(context, dict):
             context = Context(context)
         if output is None:
-            output = output = io.StringIO()
+            output = io.StringIO()
         for node in self.nodes:
             node.render(context, output)
         return output.getvalue()

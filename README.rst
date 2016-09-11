@@ -147,6 +147,13 @@ What it can do
               '''
               ...
 
+6. Extends / Block
+
+   .. code-block:: html
+
+      {% extends parent.html %}
+      {% block name %} Overrides content og 'name' block in 'parent.html' %}
+
 
 Python 3
 --------

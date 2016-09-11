@@ -100,15 +100,24 @@ class Template(object):
 
 class Expression(object):
     def __init__(self, expr):
-        parts = expr.split('|')
-        self.var = parts[0].split('.')
-        self.filters = []
-        for filt in parts[1:]:
-            bits = filt.split(':', 1)
-            args = [arg.split('.') for arg in bits[1].split(',')] if len(bits) > 1 else []
-            self.filters.append((bits[0], args))
+        if expr[0] == expr[-1] and expr[0] in "'\"":
+            self.value = expr[1:-1]
+        elif expr.isdigit():
+            self.value = int(expr)
+        else:
+            parts = expr.split('|')
+            self.var = parts[0].split('.')
+            self.filters = []
+            for filt in parts[1:]:
+                bits = filt.split(':', 1)
+                args = [arg.split('.') for arg in bits[1].split(',')] if len(bits) > 1 else []
+                self.filters.append((bits[0], args))
 
     def resolve(self, context):
+        try:
+            return self.value
+        except AttributeError:
+            pass
         value = self.resolve_lookup(context, self.var)
 
         for filt, args in self.filters:
@@ -329,7 +338,7 @@ class ExtendsTag(BlockNode):
     name = 'extends'
 
     def __init__(self, parent, loader, nodelist):
-        self.parent = parent
+        self.parent = Expression(parent)
         self.loader = loader
         self.nodelist = nodelist
 
@@ -340,7 +349,8 @@ class ExtendsTag(BlockNode):
         return cls(parent, parser.loader, nodelist)
 
     def render(self, context, output):
-        parent = self.loader[self.parent]
+        parent_name = self.parent.resolve(context)
+        parent = self.loader[parent_name]
 
         block_context = getattr(context, 'block_context', None)
         if block_context is None:

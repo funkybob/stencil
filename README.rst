@@ -36,7 +36,7 @@ Quick Start
       c = stencil.Contxt({'name': 'Ruprect'}, filters={'escape': escape})
 
       print t.render(c)
-      # Should output "Good morning, Rupprect!"
+      # Should output "Good morning, Ruprect!"
 
 What it can do
 --------------

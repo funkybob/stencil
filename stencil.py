@@ -352,8 +352,8 @@ class ExtendsTag(BlockNode):
         # Add our blocks
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].insert(0, block)
-        # If parent also extends, we need to pile it on too...
-        if list(parent.nodelist.nodes_by_type(ExtendsTag)):
+        # If parent does not extend, we need to pile it on too...
+        if not list(parent.nodelist.nodes_by_type(ExtendsTag)):
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].insert(0, block)
 
@@ -380,7 +380,7 @@ class BlockTag(BlockNode):
             block_context = context.block_context = defaultdict(list)
         context.push()
         if not block_context:
-            block = self.nodelist.render(context, output)
+            block = self
         else:
             block = block_context[self.block_name].pop()
         block.nodelist.render(context, output)

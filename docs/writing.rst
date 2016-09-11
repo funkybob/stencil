@@ -52,6 +52,12 @@ Which might render as:
 
     $129.95
 
+Filters can also take extra arguments:
+
+.. code-block:: html
+
+   {{ product.price|float_format,%0.2f,$ }}
+
 There are currently no built in filters.  You can add them to your render
 Context at run time.
 

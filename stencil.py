@@ -6,7 +6,7 @@ import io
 import os
 import re
 
-from collections import namedtuple, deque
+from collections import namedtuple, deque, defaultdict
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
@@ -76,7 +76,7 @@ class Template(object):
     def __init__(self, src, loader=None):
         self.loader = loader
         self.tokens = tokenise(src)
-        self.nodes = list(self.parse())
+        self.nodelist = Nodelist(self, ())
 
     def parse(self):
         for token in self.tokens:
@@ -95,8 +95,7 @@ class Template(object):
             context = Context(context)
         if output is None:
             output = io.StringIO()
-        for node in self.nodes:
-            node.render(context, output)
+        self.nodelist.render(context, output)
         return output.getvalue()
 
 
@@ -180,23 +179,43 @@ class BlockMeta(type):
 class BlockNode(Node):
     __metaclass__ = BlockMeta
     __tags__ = {}
+    child_nodelists = ('nodelist',)
 
     @classmethod
     def parse(cls, content, parser):
         return cls(content)
 
+    def nodes_by_type(self, node_type):
+        if isinstance(self, node_type):
+            yield self
+
+        for attr in self.child_nodelists:
+            nodelist = getattr(self, attr, None)
+            if nodelist:
+                # Of course in py3 this would be yield from...
+                for node in nodelist.nodes_by_type(node_type):
+                    yield node
+
 
 class Nodelist(list):
     def __init__(self, parser, ends):
         node = next(parser.parse())
-        while node.name not in ends:
-            self.append(node)
-            node = next(parser.parse())
+        try:
+            while node.name not in ends:
+                self.append(node)
+                node = next(parser.parse())
+        except StopIteration:
+            node = None
         self.endnode = node
 
     def render(self, context, output):
         for node in self:
             node.render(context, output)
+
+    def nodes_by_type(self, node_type):
+        for node in self:
+            if isinstance(node, node_type):
+                yield node
 
 
 class ForTag(BlockNode):
@@ -241,6 +260,7 @@ class EndforTag(BlockNode):
 
 class IfTag(BlockNode):
     name = 'if'
+    child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, condition, nodelist, elselist):
         condition, inv = re.subn(r'^not\s+', '', condition)
@@ -301,10 +321,71 @@ class IncludeTag(BlockNode):
 class LoadTag(BlockNode):
     name = 'load'
 
-    def __init__(self, module):
-        self.module = module
+    @classmethod
+    def parse(cls, content, parser):
+        importlib.import_module(content)
+        return cls(None)
+
+
+class ExtendsTag(BlockNode):
+    name = 'extends'
+
+    def __init__(self, parent, loader, nodelist):
+        self.parent = parent
+        self.loader = loader
+        self.nodelist = nodelist
 
     @classmethod
     def parse(cls, content, parser):
-        module = importlib.import_module(content)
-        return cls(module)
+        parent = content.split()[0].strip()
+        nodelist = Nodelist(parser, [])
+        return cls(parent, parser.loader, nodelist)
+
+    def render(self, context, output):
+        # Load parent
+        parent = self.loader[self.parent]
+
+        block_context = getattr(context, 'block_context', None)
+        if block_context is None:
+            block_context = context.block_context = defaultdict(list)
+
+        # Add our blocks
+        for block in self.nodelist.nodes_by_type(BlockTag):
+            block_context[block.block_name].insert(0, block)
+        # If parent also extends, we need to pile it on too...
+        if list(parent.nodelist.nodes_by_type(ExtendsTag)):
+            for block in parent.nodelist.nodes_by_type(BlockTag):
+                block_context[block.block_name].insert(0, block)
+
+        # Render our parent
+        parent.render(context, output)
+
+
+class BlockTag(BlockNode):
+    name = 'block'
+
+    def __init__(self, name, nodelist):
+        self.block_name = name
+        self.nodelist = nodelist
+
+    @classmethod
+    def parse(cls, content, parser):
+        name = nodename_re.match(content).group(0)
+        nodelist = Nodelist(parser, ['endblock'])
+        return cls(name, nodelist)
+
+    def render(self, context, output):
+        block_context = getattr(context, 'block_context', None)
+        if block_context is None:
+            block_context = context.block_context = defaultdict(list)
+        context.push()
+        if not block_context:
+            block = self.nodelist.render(context, output)
+        else:
+            block = block_context[self.block_name].pop()
+        block.nodelist.render(context, output)
+        context.pop()
+
+
+class EndBlockTag(BlockNode):
+    name = 'endblock'

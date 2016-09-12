@@ -108,3 +108,11 @@ matches any in the second argument.  The matching tag is saved as
 
 These can be rendered easily by calling their ``render`` method, which works
 just like a ``BlockNode``.
+
+Expressions
+-----------
+
+To have an argument resolved as an expression, construct an ``Expression``
+class, passing it the content.
+
+Then in render, call ``.resolve(context)`` to get its value.

@@ -11,12 +11,52 @@ There are 3 basic types of tags:
 - block
 - comment
 
+
+Expressions
+===========
+
+At several points in the syntax, an Expression can be used.
+
+They start with a value, optionally followed by a series of filters.
+
+A value can be:
+
+- an integer
+- a float
+- a string
+- a lookup
+
+A lookup will try to delve into the Context.  For example the expression
+``name`` Will look for Context['name'].
+
+However, lookups can delve deeper.  They will attempt dict lookups, attribute
+lookup, and list indexing (in that order).  Also, if the resulting value is
+callable, it will be called.
+
+So, to get the ``name`` attribute of your ``user`` object, and call its
+``title`` method, the expression would be ``name:user:title``.
+
+Filters allow you to pass the value (and possibly more arguments) to helper
+functions.  For example, you might have a dollar format function:
+
+.. code-block:: python
+
+    def dollar_format(value, currency_symbol='$'):
+        return "%s%0.2f" % (currency_symbol, float(value))
+
+If this is registered as a filter, you can now in your templates use the
+expression ``product:price|dollar_format``, or even override the currency
+symbol using ``product:price|dollar_format:'¥'``
+
+Filters can be chained, one after another.
+
+There are currently no default filters provided with Stencil.
+
 Comments
 ========
 
 Comment tags are discarded during parsing, and are only for the benefit of
 future template editors.  They have no impact on rendering performance.
-
 
 Variables
 =========
@@ -25,41 +65,7 @@ Var tags are used to display the values of variables.  They look like this:
 
 .. code-block:: html
 
-   Hello {{ name }}
-
-In this case, the ``{{ name }}`` block will render as the value of the `name`
-value in the Context.
-
-You can delve into data strucures using a "dot notation", for instance:
-
-.. code-block:: html
-
-   {{ user.first_name.title }}
-
-If the ``user`` object has a string attribute of ``first_name``, this will
-render the output of calling its ``title`` method.
-
-Additionally, the values can be pushed through `filters`.  An example might be
-if you wrote a tool for format a number as a dollar string.
-
-.. code-block:: html
-
-   {{ product.price|dollar_format }}
-
-Which might render as:
-
-.. code-block:: html
-
-    $129.95
-
-Filters can also take extra arguments:
-
-.. code-block:: html
-
-   {{ product.price|float_format,%0.2f,$ }}
-
-There are currently no built in filters.  You can add them to your render
-Context at run time.
+   Hello {{ expr }}
 
 Block Tags
 ==========
@@ -68,7 +74,7 @@ Block tags perform some action, may render some output, and may "contain" other 
 
 .. code-block:: html
 
-   {% include another.html %}
+   {% include 'another.html' %}
 
 -------------
 Built In Tags
@@ -81,7 +87,7 @@ The ``for`` tag allows you to loop over a sequence.
 
 .. code-block:: html
 
-    {% for x in y %}
+    {% for x in expr %}
     ...
     {% endfor %}
 
@@ -103,7 +109,7 @@ The ``if`` tag allows for simple flow control based on a truthy test.
 
 .. code-block:: html
 
-   {% if something %}
+   {% if expr %}
    Success!
    {% endif %}
 
@@ -111,7 +117,7 @@ It also supports negative cases:
 
 .. code-block:: html
 
-   {% if not something %}
+   {% if not expr %}
    Failure!
    {% endif %}
 
@@ -119,7 +125,7 @@ And, like the ``for`` tag, it supports an ``else`` block:
 
 .. code-block:: html
 
-   {% if something %}
+   {% if expr %}
    Success!
    {% else %}
    Failure!
@@ -147,7 +153,7 @@ context.
 
 .. code-block:: html
 
-    {% include side_menu.html %}
+    {% include expr %}
 
 Additionally, you can pass extra expressions to be added to the
 context whilst the other template is being rendered.
@@ -164,7 +170,7 @@ template.  See _extending for more details.
 
 .. code-block:: html
 
-   {% load myproject.tags %}
+   {% load 'myproject.tags' %}
 
 The value passed is a Python import path.
 

@@ -1,13 +1,11 @@
 from __future__ import unicode_literals
 
 import importlib
-
 import io
 import os
 import re
 import tokenize
-
-from collections import namedtuple, deque, defaultdict
+from collections import defaultdict, deque, namedtuple
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'

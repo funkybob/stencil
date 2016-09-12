@@ -14,7 +14,11 @@ for fn in sorted(glob.glob('tmpl/*.tpl')):
     print fn,
     base, ext = os.path.splitext(fn)
 
-    t = loader.load(os.path.basename(fn))
+    try:
+        t = loader.load(os.path.basename(fn))
+    except:
+        print "FAIL"
+        continue
 
     with open(base + '.out', 'r') as fin:
         out = fin.read()

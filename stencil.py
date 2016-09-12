@@ -85,7 +85,7 @@ class Template(object):
             elif token.type == TOK_VAR:
                 yield VarTag(token.content)
             elif token.type == TOK_BLOCK:
-                m = nodename_re.match(token.content)
+                m = re.match('\w+', token.content)
                 if not m:
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
@@ -192,7 +192,6 @@ class BlockNode(Node):
         for attr in self.child_nodelists:
             nodelist = getattr(self, attr, None)
             if nodelist:
-                # Of course in py3 this would be yield from...
                 for node in nodelist.nodes_by_type(node_type):
                     yield node
 
@@ -342,22 +341,19 @@ class ExtendsTag(BlockNode):
         return cls(parent, parser.loader, nodelist)
 
     def render(self, context, output):
-        # Load parent
         parent = self.loader[self.parent]
 
         block_context = getattr(context, 'block_context', None)
         if block_context is None:
             block_context = context.block_context = defaultdict(list)
 
-        # Add our blocks
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].insert(0, block)
-        # If parent does not extend, we need to pile it on too...
+
         if not list(parent.nodelist.nodes_by_type(ExtendsTag)):
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].insert(0, block)
 
-        # Render our parent
         parent.render(context, output)
 
 

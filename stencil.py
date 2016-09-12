@@ -14,7 +14,6 @@ TOK_VAR = 'var'
 TOK_BLOCK = 'block'
 
 tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
-nodename_re = re.compile(r'\w+')
 Token = namedtuple('Token', 'type content')
 
 
@@ -262,7 +261,7 @@ class IfTag(BlockNode):
     child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, condition, nodelist, elselist):
-        condition, inv = re.subn(r'^not\s+', '', condition)
+        condition, inv = re.subn(r'^not\s+', '', condition, count=1)
         self.inv = bool(inv)
         self.condition = Expression(condition)
         self.nodelist = nodelist
@@ -366,7 +365,7 @@ class BlockTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        name = nodename_re.match(content).group(0)
+        name = match('\w+', content).group(0)
         nodelist = Nodelist(parser, ['endblock'])
         return cls(name, nodelist)
 

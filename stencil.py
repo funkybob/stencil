@@ -92,7 +92,7 @@ class Template(object):
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
 
     def render(self, context, output=None):
-        if isinstance(context, dict):
+        if not isinstance(context, Context):
             context = Context(context)
         if output is None:
             output = io.StringIO()
@@ -128,8 +128,7 @@ class Expression(object):
 
     def parse_argument(self, tok):
         if tok[0] == tokenize.STRING:
-            value = tok[1][1:-1]
-            return value, next(self.tokens)
+            return tok[1][1:-1], next(self.tokens)
         elif tok[0] == tokenize.NUMBER:
             try:
                 value = int(tok[1])
@@ -196,7 +195,6 @@ class Node(object):
 
 
 class TextTag(Node):
-
     def render(self, context, output):
         output.write(self.content)
 
@@ -260,6 +258,7 @@ class Nodelist(list):
 
 class ForTag(BlockNode):
     name = 'for'
+    child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, argname, iterable, nodelist, elselist):
         self.argname = argname
@@ -280,7 +279,7 @@ class ForTag(BlockNode):
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
         context.push()
-        if self.elselist and not self.iterable:
+        if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
             for idx, item in enumerate(iterable):
@@ -382,8 +381,7 @@ class ExtendsTag(BlockNode):
         return cls(parent, parser.loader, nodelist)
 
     def render(self, context, output):
-        parent_name = self.parent.resolve(context)
-        parent = self.loader[parent_name]
+        parent = self.loader[self.parent.resolve(context)]
 
         block_context = getattr(context, 'block_context', None)
         if block_context is None:

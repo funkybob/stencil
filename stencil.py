@@ -34,7 +34,7 @@ def tokenise(template):
 
 class TemplateLoader(dict):
     def __init__(self, paths):
-        self.paths = map(os.path.abspath, paths)
+        self.paths = [os.path.abspath(path) for path in paths]
 
     def load(self, name):
         for path in self.paths:
@@ -223,9 +223,6 @@ class BlockNode(Node):
         return cls(content)
 
     def nodes_by_type(self, node_type):
-        if isinstance(self, node_type):
-            yield self
-
         for attr in self.child_nodelists:
             nodelist = getattr(self, attr, None)
             if nodelist:
@@ -252,6 +249,9 @@ class Nodelist(list):
         for node in self:
             if isinstance(node, node_type):
                 yield node
+            if isinstance(node, BlockNode):
+                for child in node.nodes_by_type(node_type):
+                    yield child
 
 
 class ForTag(BlockNode):

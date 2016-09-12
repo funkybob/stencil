@@ -145,7 +145,7 @@ class Expression(object):
         elif tok[0] == tokenize.NAME:
             var = [tok[1]]
             tok = next(self.tokens)
-            while tok[0] == tokenize.OP and tok[1] == '>':
+            while tok[0] == tokenize.OP and tok[1] == ':':
                 tok = next(self.tokens)
                 assert tok[0] in (tokenize.NAME, tokenize.NUMBER), "Invalid syntax in expression at %d: %r" % (
                     tok[2][1], tok[-1],

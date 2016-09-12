@@ -17,6 +17,8 @@ for fn in sorted(glob.glob('tmpl/*.tpl')):
     try:
         t = loader.load(os.path.basename(fn))
     except:
+        import traceback
+        traceback.print_exc()
         print "FAIL"
         continue
 

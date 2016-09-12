@@ -138,16 +138,16 @@ class Expression(object):
             return value, next(self.tokens)
         elif tok[0] == tokenize.NUMBER:
             try:
-                value = float(tok[1])
-            except ValueError:
                 value = int(tok[1])
+            except ValueError:
+                value = float(tok[1])
             return value, next(self.tokens)
         elif tok[0] == tokenize.NAME:
             var = [tok[1]]
             tok = next(self.tokens)
-            while tok[0] == tokenize.OP and tok[1] == '.':
+            while tok[0] == tokenize.OP and tok[1] == '>':
                 tok = next(self.tokens)
-                assert tok[0] == tokenize.NAME, "Invalid syntax in expression at %d: %r" % (
+                assert tok[0] in (tokenize.NAME, tokenize.NUMBER), "Invalid syntax in expression at %d: %r" % (
                     tok[2][1], tok[-1],
                 )
                 var.append(tok[1])

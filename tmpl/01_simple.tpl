@@ -1,2 +1,2 @@
 Hello, {{ name }}.
-Everyone, it's {{ name.title }}!
+Everyone, it's {{ name>title }}!

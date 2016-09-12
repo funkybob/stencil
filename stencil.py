@@ -101,27 +101,21 @@ class Template(object):
 
 
 class Expression(object):
-    def __str__(self):
-        return '%r %r' % (self.value, self.filters)
-
     def __init__(self, expr):
         self.tokens = tokenize.generate_tokens(io.StringIO(expr).readline)
         tok = next(self.tokens)
 
-        # Parse initial value: lit number | lit string | lit float | lookup
         value, tok = self.parse_argument(tok)
         self.value = value
 
         filters = []
         while tok[0] == tokenize.OP and tok[1] == '|':
-            # Parse filters
             tok = next(self.tokens)
             assert tok[0] == tokenize.NAME, "Invalid syntax in expression at %d.  Expected name." % (tok[2][1],)
             filt = tok[1]
             args = []
             tok = next(self.tokens)
             if tok[0] == tokenize.OP and tok[1] == ':':
-                # Arguments
                 value, tok = self.parse_argument(tok)
                 args.append(value)
                 while tok[0] == tokenize.OP and tok[1] == ',':

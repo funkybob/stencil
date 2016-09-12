@@ -5,6 +5,7 @@ import importlib
 import io
 import os
 import re
+import tokenize
 
 from collections import namedtuple, deque, defaultdict
 
@@ -43,6 +44,7 @@ class TemplateLoader(dict):
             if os.path.isfile(full_path):
                 with io.open(full_path, 'r') as fin:
                     return Template(fin.read(), loader=self)
+        raise ValueError(name)
 
     def __missing__(self, key):
         self[key] = tmpl = self.load(key)
@@ -99,39 +101,76 @@ class Template(object):
 
 
 class Expression(object):
+    def __str__(self):
+        return '%r %r' % (self.value, self.filters)
+
     def __init__(self, expr):
-        if expr[0] == expr[-1] and expr[0] in "'\"":
-            self.value = expr[1:-1]
-        elif expr.isdigit():
-            self.value = int(expr)
-        else:
-            parts = expr.split('|')
-            self.var = parts[0].split('.')
-            self.filters = []
-            for filt in parts[1:]:
-                bits = filt.split(':', 1)
-                args = [arg.split('.') for arg in bits[1].split(',')] if len(bits) > 1 else []
-                self.filters.append((bits[0], args))
+        self.tokens = tokenize.generate_tokens(io.StringIO(expr).readline)
+        tok = next(self.tokens)
+
+        # Parse initial value: lit number | lit string | lit float | lookup
+        value, tok = self.parse_argument(tok)
+        self.value = value
+
+        filters = []
+        while tok[0] == tokenize.OP and tok[1] == '|':
+            # Parse filters
+            tok = next(self.tokens)
+            assert tok[0] == tokenize.NAME, "Invalid syntax in expression at %d.  Expected name." % (tok[2][1],)
+            filt = tok[1]
+            args = []
+            tok = next(self.tokens)
+            if tok[0] == tokenize.OP and tok[1] == ':':
+                # Arguments
+                value, tok = self.parse_argument(tok)
+                args.append(value)
+                while tok[0] == tokenize.OP and tok[1] == ',':
+                    arg, tok = self.parse_argument(tok)
+                    args.append(arg)
+            filters.append((filt, args))
+
+        self.filters = filters
+        assert tok[0] == tokenize.ENDMARKER, "Unexpected extra in expression at %d: %s" % (tok[2][1], tok[1])
+
+    def parse_argument(self, tok):
+        if tok[0] == tokenize.STRING:
+            value = tok[1][1:-1]
+            return value, next(self.tokens)
+        elif tok[0] == tokenize.NUMBER:
+            try:
+                value = float(tok[1])
+            except ValueError:
+                value = int(tok[1])
+            return value, next(self.tokens)
+        elif tok[0] == tokenize.NAME:
+            var = [tok[1]]
+            tok = next(self.tokens)
+            while tok[0] == tokenize.OP and tok[1] == '.':
+                tok = next(self.tokens)
+                assert tok[0] == tokenize.NAME, "Invalid syntax in expression at %d: %r" % (
+                    tok[2][1], tok[-1],
+                )
+                var.append(tok[1])
+                tok = next(self.tokens)
+            return var, tok
 
     def resolve(self, context):
-        try:
-            return self.value
-        except AttributeError:
-            pass
-        value = self.resolve_lookup(context, self.var)
+        value = self.resolve_lookup(context, self.value)
 
         for filt, args in self.filters:
-            args = [self.resolve_lookup(arg) for arg in args]
+            args = [self.resolve_lookup(context, arg) for arg in args]
             try:
                 func = context.filters[filt]
             except KeyError:
-                raise SyntaxError("Unknown filter function %s : %s -> %s" % (filt, self.var, self.filters))
+                raise SyntaxError("Unknown filter function %s : %s -> %s" % (filt, self.value, self.filters))
             else:
                 value = func(value, *args)
         return value
 
-    def resolve_lookup(self, context, key, default=''):
-        parts = iter(key)
+    def resolve_lookup(self, context, parts, default=''):
+        if isinstance(parts, (int, float, basestring)):
+            return parts
+        parts = iter(parts)
         try:
             obj = context[next(parts)]
         except KeyError:
@@ -303,7 +342,7 @@ class IncludeTag(BlockNode):
     name = 'include'
 
     def __init__(self, template_name, kwargs, loader):
-        self.template_name = template_name
+        self.template_name = Expression(template_name)
         self.kwargs = kwargs
         self.loader = loader
 
@@ -318,7 +357,7 @@ class IncludeTag(BlockNode):
         return cls(bits[0], kwargs, parser.loader)
 
     def render(self, context, output):
-        tmpl = self.loader[self.template_name]
+        tmpl = self.loader[self.template_name.resolve(context)]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
         context.push(**kwargs)
         tmpl.render(context, output)
@@ -375,7 +414,7 @@ class BlockTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        name = match('\w+', content).group(0)
+        name = re.match('\w+', content).group(0)
         nodelist = Nodelist(parser, ['endblock'])
         return cls(name, nodelist)
 

@@ -276,15 +276,15 @@ class ForTag(BlockNode):
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
-        context.push()
         if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
+            context.push()
             for idx, item in enumerate(iterable):
                 context['loopcounter'] = idx
                 context[self.argname] = item
                 self.nodelist.render(context, output)
-        context.pop()
+            context.pop()
 
 
 class ElseTag(BlockNode):

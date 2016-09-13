@@ -388,7 +388,7 @@ class ExtendsTag(BlockNode):
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].append(block)
 
-        if not list(parent.nodelist.nodes_by_type(ExtendsTag)):
+        if not isinstance(parent.nodelist[0], ExtendsTag):
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].append(block)
 

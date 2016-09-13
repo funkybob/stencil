@@ -181,6 +181,11 @@ The ``extends`` tag allows the use of template inheritance.  A `base` template
 can denote ``blocks`` of content which can be overridden by templates which
 ``extend`` it.
 
+.. caution::
+
+   The ``extends`` tag only works properly if it is the _very_ _first_ thing in
+   your template.
+
 Say we have the following base template:
 
 .. code-block:: html

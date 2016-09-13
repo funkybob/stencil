@@ -5,7 +5,7 @@ A minimalist template engine for Python
 
 The goal of Stencil is to provide just enough of a template engine in a single file.
 
-Currently weighs in at around 300 LoC
+Currently weighs in at just under 500 LoC
 
 Quick Start
 -----------

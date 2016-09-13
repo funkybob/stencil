@@ -383,14 +383,14 @@ class ExtendsTag(BlockNode):
 
         block_context = getattr(context, 'block_context', None)
         if block_context is None:
-            block_context = context.block_context = defaultdict(list)
+            block_context = context.block_context = defaultdict(deque)
 
         for block in self.nodelist.nodes_by_type(BlockTag):
-            block_context[block.block_name].insert(0, block)
+            block_context[block.block_name].append(block)
 
         if not list(parent.nodelist.nodes_by_type(ExtendsTag)):
             for block in parent.nodelist.nodes_by_type(BlockTag):
-                block_context[block.block_name].insert(0, block)
+                block_context[block.block_name].append(block)
 
         parent.render(context, output)
 
@@ -411,12 +411,12 @@ class BlockTag(BlockNode):
     def render(self, context, output):
         block_context = getattr(context, 'block_context', None)
         if block_context is None:
-            block_context = context.block_context = defaultdict(list)
-        context.push()
+            block_context = context.block_context = defaultdict(deque)
         if not block_context:
             block = self
         else:
-            block = block_context[self.block_name].pop()
+            block = block_context[self.block_name].popleft()
+        context.push()
         block.nodelist.render(context, output)
         context.pop()
 

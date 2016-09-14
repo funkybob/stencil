@@ -112,7 +112,47 @@ just like a ``BlockNode``.
 Expressions
 -----------
 
-To have an argument resolved as an expression, construct an ``Expression``
-class, passing it the content.
+To have an argument resolved as an expression, use the ``parse_expression``
+function.  This will parse then value passedn, and construct an ``Expression``
+instance.
 
 Then in render, call ``.resolve(context)`` to get its value.
+
+For more fine grained parsing, and to parse ``key=expr`` syntax, use a
+``Tokens`` class.
+
+.. code-block:: python
+
+   tokens = Tokens(content)
+
+This provides several useful methods:
+
+.. code-block:: python
+
+   value = tokens.parse_argument()
+
+Parses a single argument, be it a string, float or int literal, or a lookup.
+The result is suitable for passing as the second argument to
+``resolve_lookup``, or as the first to ``Expression``.
+
+.. code-block:: python
+
+   value, filters = tokens.parse_filter_expression()
+
+Parse a filter expression, returning a value (as from ``parse_argument``, and a
+list of (filter name, \*args) tuples.
+
+.. code-block:: python
+
+   kwargs = tokens.parse_kwargs()
+
+Parse `key=filter-expression` sequences, and construct a dict of `key:
+Expression()` items.
+
+
+.. code-block:: python
+
+   tokens.assert_end()
+
+Asserts the current token to be parsed is an end marker, or raises and
+assertion error with a message showing where the token was.

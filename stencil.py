@@ -98,78 +98,87 @@ class Template(object):
         return output.getvalue()
 
 
+class Tokens(object):
+    def __init__(self, source):
+        self.tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        self.next()
+
+    def next(self):
+        self.current = next(self.tokens)
+
+    def parse_filter_expression(self):
+        value = self.parse_argument()
+
+        filters = []
+        while self.current[0:2] == (tokenize.OP, '|'):
+            self.next()
+            assert self.current[0] == tokenize.NAME, \
+                "Invalid syntax in expression at %d.  Expected name." % (self.current[2][1],)
+            filt = self.current[1]
+            args = []
+            self.next()
+            if self.current[0] == tokenize.OP and self.current[1] == ':':
+                term = self.parse_argument()
+                args.append(term)
+                while self.current[0] == tokenize.OP and self.current[1] == ',':
+                    args.append(self.parse_argument())
+            filters.append((filt, args))
+
+        return value, filters
+
+    def parse_argument(self):
+        '''
+        Parse either a string literal, int/float literal, or lookup sequence
+        '''
+        if self.current[0] == tokenize.STRING:
+            value = self.current[1][1:-1]
+            self.next()
+            return value
+        elif self.current[0] == tokenize.NUMBER:
+            try:
+                value = int(self.current[1])
+            except ValueError:
+                value = float(self.current[1])
+            self.next()
+            return value
+        elif self.current[0] == tokenize.NAME:
+            var = [self.current[1]]
+            self.next()
+            while self.current[0:2] == (tokenize.OP, ':'):
+                self.next()
+                assert self.current[0] in (tokenize.NAME, tokenize.NUMBER), \
+                    "Invalid syntax in expression at %d: %r" % (self.current[2][1], self.current[-1])
+                var.append(self.current[1])
+                self.next()
+            return var
+
+        raise SyntaxError('Unexpected token: %r' % (self.current,))
+
+    def parse_kwargs(self):
+        kwargs = {}
+        while self.current[0] != tokenize.ENDMARKER:
+            assert self.current[0] == tokenize.NAME, \
+                'Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1])
+            key = self.current[1]
+            self.next()
+            assert self.current[0] == tokenize.OP and self.current[1] == '=', \
+                'Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1])
+            self.next()
+            value, filters = self.parse_filter_expression()
+            kwargs[key] = Expression(value, filters)
+
+        return kwargs
+
+    def assert_end(self):
+        assert self.current[0] == tokenize.ENDMARKER, \
+            "Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1])
+
+
 def parse_expression(expr):
-    tokens = tokenize.generate_tokens(io.StringIO(expr).readline)
-    tok = next(tokens)
-    tok, value, filters = parse_filter_expression(tok, tokens)
-
-    assert tok[0] == tokenize.ENDMARKER, 'Unexpected token: %r' % (tok,)
+    tokens = Tokens(expr)
+    value, filters = tokens.parse_filter_expression()
+    tokens.assert_end()
     return Expression(value, filters)
-
-
-def parse_kwargs(content=None, tokens=None):
-    if tokens is None:
-        token = tokenize.generatE_tokens(io.StringIO(content).readline)
-
-    kwargs = {}
-    while tok[0] != tokenize.ENDMARKER:
-        assert tok[0] == tokenize.NAME, 'Syntax error in Include (%d): %r' % (tok[2][0], tok[-1])
-        key = tok[1]
-        tok = next(tokens)
-        assert tok[0] == tokenize.OP and tok[1] == '=', 'Syntax error in Include (%d): %r' % (tok[2][0], tok[-1])
-        tok = next(tokens)
-        tok, value, filters = parse_filter_expression(tok, tokens)
-        kwargs[key] = Expression(value, filters)
-
-    return kwargs, tok
-
-
-def parse_filter_expression(tok, tokens):
-    value, tok = parse_argument(tok, tokens)
-
-    filters = []
-    while tok[0] == tokenize.OP and tok[1] == '|':
-        tok = next(tokens)
-        assert tok[0] == tokenize.NAME, "Invalid syntax in expression at %d.  Expected name." % (tok[2][1],)
-        filt = tok[1]
-        args = []
-        tok = next(tokens)
-        if tok[0] == tokenize.OP and tok[1] == ':':
-            value, tok = parse_argument(tok, tokens)
-            args.append(value)
-            while tok[0] == tokenize.OP and tok[1] == ',':
-                arg, tok = parse_argument(tok, tokens)
-                args.append(arg)
-        filters.append((filt, args))
-
-    return tok, value, filters
-
-
-def parse_argument(tok, tokens):
-    '''
-    Parse either a string literal, int/float literal, or lookup sequence
-    '''
-    if tok[0] == tokenize.STRING:
-        return tok[1][1:-1], next(tokens)
-    elif tok[0] == tokenize.NUMBER:
-        try:
-            value = int(tok[1])
-        except ValueError:
-            value = float(tok[1])
-        return value, next(tokens)
-    elif tok[0] == tokenize.NAME:
-        var = [tok[1]]
-        tok = next(tokens)
-        while tok[0] == tokenize.OP and tok[1] == ':':
-            tok = next(tokens)
-            assert tok[0] in (tokenize.NAME, tokenize.NUMBER), "Invalid syntax in expression at %d: %r" % (
-                tok[2][1], tok[-1],
-            )
-            var.append(tok[1])
-            tok = next(tokens)
-        return var, tok
-
-    raise SyntaxError('Unexpected token: %r' % (tok,))
 
 
 class Expression(object):
@@ -178,10 +187,10 @@ class Expression(object):
         self.filters = filters
 
     def resolve(self, context):
-        value = self.resolve_lookup(context, self.value)
+        value = resolve_lookup(context, self.value)
 
         for filt, args in self.filters:
-            args = [self.resolve_lookup(context, arg) for arg in args]
+            args = [resolve_lookup(context, arg) for arg in args]
             try:
                 func = context.filters[filt]
             except KeyError:
@@ -190,29 +199,29 @@ class Expression(object):
                 value = func(value, *args)
         return value
 
-    @staticmethod
-    def resolve_lookup(context, parts, default=''):
-        if isinstance(parts, (int, float, basestring)):
-            return parts
-        parts = iter(parts)
-        try:
-            obj = context[next(parts)]
-        except KeyError:
-            return default
-        for step in parts:
-            try:    # dict lookup
-                obj = obj[step]
-            except (TypeError, AttributeError, KeyError):
-                try:    # attribute lookup
-                    obj = getattr(obj, step)
-                except (TypeError, AttributeError):
-                    try:    # list index lookup
-                        obj = obj[int(step)]
-                    except (IndexError, ValueError, KeyError, TypeError):
-                        return default
-            if callable(obj):
-                obj = obj()
-        return obj
+
+def resolve_lookup(context, parts, default=''):
+    if isinstance(parts, (int, float, basestring)):
+        return parts
+    parts = iter(parts)
+    try:
+        obj = context[next(parts)]
+    except KeyError:
+        return default
+    for step in parts:
+        try:    # dict lookup
+            obj = obj[step]
+        except (TypeError, AttributeError, KeyError):
+            try:    # attribute lookup
+                obj = getattr(obj, step)
+            except (TypeError, AttributeError):
+                try:    # list index lookup
+                    obj = obj[int(step)]
+                except (IndexError, ValueError, KeyError, TypeError):
+                    return default
+        if callable(obj):
+            obj = obj()
+    return obj
 
 
 class Node(object):
@@ -373,14 +382,13 @@ class IncludeTag(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
-        tokens = tokenize.generate_tokens(io.StringIO(content).readline)
-        tok = next(tokens)
+        tokens = Tokens(content)
+        value, filters = tokens.parse_filter_expression()
 
-        tok, value, filters = parse_filter_expression(tok, tokens)
         template_name = Expression(value, filters)
 
-        kwargs, tok = parse_kwargs(tokens=tokens)
-        assert tok[0] == tokenize.ENDMARKER, "Error parsing arguments (%d): %r" % (tok[2][0], tok[-1])
+        kwargs = tokens.parse_kwargs()
+        tokens.assert_end()
 
         return cls(template_name, kwargs, parser.loader)
 
@@ -472,8 +480,9 @@ class WithTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        kwargs, tok = parse_kwargs(content)
-        assert tok[0] == tokenize.ENDMARKER, "Error parsing arguments (%d): %r" % (tok[2][0], tok[-1])
+        tokens = Tokens(content)
+        kwargs = tokens.parse_kwargs()
+        tokens.assert_end()
 
         nodelist = Nodelist(parser, ['endwith'])
         return cls(kwargs, nodelist)

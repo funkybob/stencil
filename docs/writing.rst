@@ -183,7 +183,7 @@ can denote ``blocks`` of content which can be overridden by templates which
 
 .. caution::
 
-   The ``extends`` tag only works properly if it is the _very_ _first_ thing in
+   The ``extends`` tag only works properly if it is the *very first* thing in
    your template.
 
 Say we have the following base template:

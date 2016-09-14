@@ -252,3 +252,15 @@ write now the ``blocks`` we want to override:
 This will override only the two given blocks content.
 
 Any content outside of ``block`` tags will be ignored.
+
+with
+----
+
+Using ``with`` you can temporarily assign new values in the context from
+expressions.  This can help avoid repeated work.
+
+.. code-block:: html
+
+   {% with url=page|make_url %}
+   <a href="{{ url }}" class="link {% if url|is_current_url %}current{% endif %}">{{ page:title }}</a>
+   {% endwith %}

@@ -113,7 +113,7 @@ Expressions
 -----------
 
 To have an argument resolved as an expression, use the ``parse_expression``
-function.  This will parse then value passedn, and construct an ``Expression``
+function.  This will parse then value passed, and construct an ``Expression``
 instance.
 
 Then in render, call ``.resolve(context)`` to get its value.

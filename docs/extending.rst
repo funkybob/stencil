@@ -64,6 +64,8 @@ Now we can use it:
    >>> ctx = Context({'value': '<script>alert("BOO");</script>'}, {'escape': escape})
 
 
+.. _extending_tags:
+
 Tags
 ====
 
@@ -137,6 +139,10 @@ The result is suitable for passing as the second argument to
 
 .. code-block:: python
 
+    value = resolve_lookup(value)
+
+.. code-block:: python
+
    value, filters = tokens.parse_filter_expression()
 
 Parse a filter expression, returning a value (as from ``parse_argument``, and a
@@ -146,8 +152,8 @@ list of (filter name, \*args) tuples.
 
    kwargs = tokens.parse_kwargs()
 
-Parse `key=filter-expression` sequences, and construct a dict of `key:
-Expression()` items.
+Parse `key=filter-expression` sequences, and construct a dict of
+`key: Expression()` items.
 
 
 .. code-block:: python

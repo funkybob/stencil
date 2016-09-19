@@ -27,7 +27,7 @@ A value can be:
 - a lookup
 
 A lookup will try to delve into the Context.  For example the expression
-``name`` Will look for Context['name'].
+``name`` will look for Context['name'].
 
 However, lookups can delve deeper.  They will attempt dict lookups, attribute
 lookup, and list indexing (in that order).  Also, if the resulting value is
@@ -88,7 +88,7 @@ The ``for`` tag allows you to loop over a sequence.
 .. code-block:: html
 
     {% for x in expr %}
-    ...
+    …
     {% endfor %}
 
 The ``for`` tag also support and ``else`` block.  It will be used if sequence
@@ -97,7 +97,7 @@ to be iterated is empty.
 .. code-block:: html
 
    {% for x in empty_list %}
-   ...
+   …
    {% else %}
    Nothing to show.
    {% endfor %}
@@ -138,7 +138,7 @@ And, like the ``for`` tag, it supports an ``else`` block:
 - non-empty lists or dicts
 - non-zero values
 
-Conversely, things that are "falsey" are:
+Conversely, things that are "falsy" are:
 
 - False
 - empty strings
@@ -166,7 +166,7 @@ load
 ----
 
 This tag lets you load other code modules to add new tags to use in this
-template.  See _extending for more details.
+template.  See _extending_ for more details.
 
 .. code-block:: html
 

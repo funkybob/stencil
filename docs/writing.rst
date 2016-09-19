@@ -166,7 +166,7 @@ load
 ----
 
 This tag lets you load other code modules to add new tags to use in this
-template.  See _extending for more details.
+template.  See :ref:`extending_tags` for more details.
 
 .. code-block:: html
 

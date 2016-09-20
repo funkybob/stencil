@@ -71,11 +71,25 @@ class Context(object):
         self._stack[0][key] = value
 
 
+class Nodelist(list):
+    def render(self, context, output):
+        for node in self:
+            node.render(context, output)
+
+    def nodes_by_type(self, node_type):
+        for node in self:
+            if isinstance(node, node_type):
+                yield node
+            if isinstance(node, BlockNode):
+                for child in node.nodes_by_type(node_type):
+                    yield child
+
+
 class Template(object):
     def __init__(self, src, loader=None):
         self.loader = loader
         self.tokens = tokenise(src)
-        self.nodelist = Nodelist(self, ())
+        self.nodelist = self.parse_nodelist([])
 
     def parse(self):
         for token in self.tokens:
@@ -88,6 +102,19 @@ class Template(object):
                 if not m:
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
+
+
+    def parse_nodelist(self, ends):
+        nodelist = Nodelist()
+        node = next(self.parse())
+        try:
+            while node.name not in ends:
+                nodelist.append(node)
+                node = next(self.parse())
+        except StopIteration:
+            node = None
+        nodelist.endnode = node
+        return nodelist
 
     def render(self, context, output=None):
         if not isinstance(context, Context):
@@ -106,7 +133,7 @@ class Tokens(object):
     def next(self):
         self.current = next(self.tokens)
 
-    def parse_filter_expression(self):
+    def parse_filter_expression(self, end=False):
         value = self.parse_argument()
 
         filters = []
@@ -124,6 +151,8 @@ class Tokens(object):
                     args.append(self.parse_argument())
             filters.append((filt, args))
 
+        if end:
+            self.assert_end()
         return value, filters
 
     def parse_argument(self):
@@ -154,7 +183,7 @@ class Tokens(object):
 
         raise SyntaxError('Unexpected token: %r' % (self.current,))
 
-    def parse_kwargs(self):
+    def parse_kwargs(self, end=False):
         kwargs = {}
         while self.current[0] != tokenize.ENDMARKER:
             assert self.current[0] == tokenize.NAME, \
@@ -167,6 +196,8 @@ class Tokens(object):
             value, filters = self.parse_filter_expression()
             kwargs[key] = Expression(value, filters)
 
+        if end:
+            self.assert_end()
         return kwargs
 
     def assert_end(self):
@@ -176,15 +207,13 @@ class Tokens(object):
 
 def parse_expression(expr):
     tokens = Tokens(expr)
-    value, filters = tokens.parse_filter_expression()
-    tokens.assert_end()
+    value, filters = tokens.parse_filter_expression(end=True)
     return Expression(value, filters)
 
 
 class Expression(object):
     def __init__(self, value, filters):
-        self.value = value
-        self.filters = filters
+        self.value, self.filters = value, filters
 
     def resolve(self, context):
         value = resolve_lookup(context, self.value)
@@ -208,6 +237,8 @@ def resolve_lookup(context, parts, default=''):
         obj = context[next(parts)]
     except KeyError:
         return default
+    if callable(obj):
+        obj = obj()
     for step in parts:
         try:    # dict lookup
             obj = obj[step]
@@ -272,48 +303,20 @@ class BlockNode(Node):
                     yield node
 
 
-class Nodelist(list):
-    def __init__(self, parser, ends):
-        node = next(parser.parse())
-        try:
-            while node.name not in ends:
-                self.append(node)
-                node = next(parser.parse())
-        except StopIteration:
-            node = None
-        self.endnode = node
-
-    def render(self, context, output):
-        for node in self:
-            node.render(context, output)
-
-    def nodes_by_type(self, node_type):
-        for node in self:
-            if isinstance(node, node_type):
-                yield node
-            if isinstance(node, BlockNode):
-                for child in node.nodes_by_type(node_type):
-                    yield child
-
-
 class ForTag(BlockNode):
     name = 'for'
     child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, argname, iterable, nodelist, elselist):
-        self.argname = argname
-        self.iterable = iterable
-        self.nodelist = nodelist
-        self.elselist = elselist
+        self.argname, self.iterable, self.nodelist, self.elselist = argname, iterable, nodelist, elselist
 
     @classmethod
     def parse(cls, content, parser):
         argname, iterable = content.split(' in ', 1)
-        nodelist = Nodelist(parser, ['endfor', 'else'])
+        nodelist = parser.parse_nodelist({'endfor', 'else'})
+        elselist = None
         if nodelist.endnode.name == 'else':
-            elselist = Nodelist(parser, ['endfor'])
-        else:
-            elselist = None
+            elselist = parser.parse_nodelist({'endfor'})
         return cls(argname.strip(), parse_expression(iterable.strip()), nodelist, elselist)
 
     def render(self, context, output):
@@ -350,9 +353,9 @@ class IfTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        nodelist = Nodelist(parser, ['endif', 'else'])
+        nodelist = parser.parse_nodelist({'endif', 'else'})
         if nodelist.endnode.name == 'else':
-            elselist = Nodelist(parser, ['endif'])
+            elselist = parser.parse_nodelist({'endif'})
         else:
             elselist = None
         return cls(content, nodelist, elselist)
@@ -375,9 +378,7 @@ class IncludeTag(BlockNode):
     name = 'include'
 
     def __init__(self, template_name, kwargs, loader):
-        self.template_name = template_name
-        self.kwargs = kwargs
-        self.loader = loader
+        self.template_name, self.kwargs, self.loader = template_name, kwargs, loader
 
     @classmethod
     def parse(cls, content, parser):
@@ -387,8 +388,7 @@ class IncludeTag(BlockNode):
 
         template_name = Expression(value, filters)
 
-        kwargs = tokens.parse_kwargs()
-        tokens.assert_end()
+        kwargs = tokens.parse_kwargs(end=True)
 
         return cls(template_name, kwargs, parser.loader)
 
@@ -414,14 +414,12 @@ class ExtendsTag(BlockNode):
     name = 'extends'
 
     def __init__(self, parent, loader, nodelist):
-        self.parent = parent
-        self.loader = loader
-        self.nodelist = nodelist
+        self.parent, self.loader, self.nodelist = parent, loader, nodelist
 
     @classmethod
     def parse(cls, content, parser):
         parent = parse_expression(content)
-        nodelist = Nodelist(parser, [])
+        nodelist = parser.parse_nodelist([])
         return cls(parent, parser.loader, nodelist)
 
     def render(self, context, output):
@@ -451,7 +449,7 @@ class BlockTag(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         name = re.match('\w+', content).group(0)
-        nodelist = Nodelist(parser, ['endblock'])
+        nodelist = parser.parse_nodelist({'endblock'})
         return cls(name, nodelist)
 
     def render(self, context, output):
@@ -481,10 +479,9 @@ class WithTag(BlockNode):
     @classmethod
     def parse(cls, content, parser):
         tokens = Tokens(content)
-        kwargs = tokens.parse_kwargs()
-        tokens.assert_end()
+        kwargs = tokens.parse_kwargs(end=True)
 
-        nodelist = Nodelist(parser, ['endwith'])
+        nodelist = parser.parse_nodelist({'endwith'})
         return cls(kwargs, nodelist)
 
     def render(self, context, output):

@@ -55,6 +55,8 @@ You can pass a normal dict, which stencil will convert to a ``Context``
 instance, or you can pass your own instance, which allows you to add
 ``filters`` for var tags.
 
+.. _custom_filters:
+
 Custom filters
 --------------
 

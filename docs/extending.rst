@@ -7,8 +7,8 @@ Stencil allows you to easily add new tags and filters.
 Filters
 =======
 
-As noted in the _using document, you can easily pass new filter functions with
-your context.
+As noted in :ref:`custom_filters`, you can easily pass new filter functions with your
+context.
 
 Here is an example of adding an ``escape`` filter:
 
@@ -76,12 +76,20 @@ All tags derive from the ``stencil.BlockNode`` class, and self-register with
 
     from stencil import BlockNode
 
-    class MyNode(BlockNode):
+    class MyTag(BlockNode):
         name = 'my'  # This is matched in {% my %}
 
 When ``stencil`` finds a tag matching this name, it will call the
 ``BlockNode.parse`` classmethod, passing it the rest of the tag content, and
 the template instance.  This method must return a BlockNode sub-class instance.
+
+.. code-block:: python
+
+   class MyTag(BlockNode):
+
+       @classmethod
+       def parse(cls, content, parser):
+           return cls(content)
 
 The default action is to just return an instance of the class, passed the tag
 content.
@@ -102,14 +110,19 @@ To do this they build a ``Nodelist``:
 
         @classmethod
         def parse(self, content, parser):
-            nodelist = Nodelist(parser, ('endmyblock',))
+            nodelist = parser.parse_nodelist({'endmyblock',})
+            return cls(nodelist)
 
-The ``Nodelist`` will consume tags from the parser until it reaches one that
-matches any in the second argument.  The matching tag is saved as
-``Nodelist.endnode``.
+This will consume tags until it reaches one with a name found in the list. The
+tags are added to a ``Nodelist`` instance, except the matching one which it
+stored in ``Nodelist.endnode``.
 
-These can be rendered easily by calling their ``render`` method, which works
-just like a ``BlockNode``.
+A ``Nodelist`` can be rendered easily by calling their ``render`` method, which
+works just like a ``BlockNode``.
+
+.. code-block:: python
+
+   nodelist.render(context, output)
 
 Expressions
 -----------
@@ -118,7 +131,7 @@ To have an argument resolved as an expression, use the ``parse_expression``
 function.  This will parse then value passed, and construct an ``Expression``
 instance.
 
-Then in render, call ``.resolve(context)`` to get its value.
+Then in render, call ``Expression.resolve(context)`` to get its value.
 
 For more fine grained parsing, and to parse ``key=expr`` syntax, use a
 ``Tokens`` class.

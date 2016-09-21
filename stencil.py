@@ -206,8 +206,7 @@ class Tokens(object):
 
 
 def parse_expression(expr):
-    tokens = Tokens(expr)
-    value, filters = tokens.parse_filter_expression(end=True)
+    value, filters = Tokens(expr).parse_filter_expression(end=True)
     return Expression(value, filters)
 
 
@@ -384,8 +383,8 @@ class IncludeTag(BlockNode):
     def parse(cls, content, parser):
         assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
         tokens = Tokens(content)
-        value, filters = tokens.parse_filter_expression()
 
+        value, filters = tokens.parse_filter_expression()
         template_name = Expression(value, filters)
 
         kwargs = tokens.parse_kwargs(end=True)
@@ -478,9 +477,7 @@ class WithTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        tokens = Tokens(content)
-        kwargs = tokens.parse_kwargs(end=True)
-
+        kwargs = Tokens(content).parse_kwargs(end=True)
         nodelist = parser.parse_nodelist({'endwith'})
         return cls(kwargs, nodelist)
 

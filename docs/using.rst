@@ -51,14 +51,10 @@ Context
 When rendering a template, you need to pass it a ``Context`` - this is the
 limit of information the template can access.
 
-You can pass a normal dict, which stencil will convert to a ``Context``
-instance, or you can pass your own instance, which allows you to add
-``filters`` for var tags.
-
 .. _custom_filters:
 
 Custom filters
 --------------
 
-A dict of custom filter functions can be passed as a second argument to the
-``Context``.
+Filtering functions for applying to values in expressions can be defined in the
+globally shared dict ``stencil.FILTERS``.

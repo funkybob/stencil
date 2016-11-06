@@ -7,8 +7,8 @@ Stencil allows you to easily add new tags and filters.
 Filters
 =======
 
-As noted in :ref:`custom_filters`, you can easily pass new filter functions with your
-context.
+As noted in :ref:`custom_filters`, you can easily register new filter
+functions.
 
 Here is an example of adding an ``escape`` filter:
 
@@ -50,6 +50,8 @@ Here is an example of adding an ``escape`` filter:
             return escape_js(value)
         raise ValueError('Invalid escape mode: %r' % mode)
 
+    stencil.FILTERS['escape'] = escape
+
 And we use it in our template:
 
 .. code-block:: html
@@ -61,7 +63,9 @@ Now we can use it:
 .. code-block:: python
 
    >>> from stencil import TemplateLoader, Context
-   >>> ctx = Context({'value': '<script>alert("BOO");</script>'}, {'escape': escape})
+   >>> ctx = Context({'value': '<script>alert("BOO");</script>'})
+   >>> tmp.render(ctx)
+   u'<input type="text" value="&lt;script&gt;alert(&quot;BOO&quot;);&lt;/script&gt;">'
 
 
 .. _extending_tags:

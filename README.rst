@@ -30,10 +30,11 @@ Quick Start
 
       from .utils import escape
 
+      stencil.FILTRES['escape'] = escape
       loader = stencil.TemplateLoader(['tmpl/'])
 
       t = loader['index.html']
-      c = stencil.Contxt({'name': 'Ruprect'}, filters={'escape': escape})
+      c = stencil.Contxt({'name': 'Ruprect'})
 
       print t.render(c)
       # Should output "Good morning, Ruprect!"

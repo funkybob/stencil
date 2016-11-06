@@ -44,9 +44,12 @@ functions.  For example, you might have a dollar format function:
     def dollar_format(value, currency_symbol='$'):
         return "%s%0.2f" % (currency_symbol, float(value))
 
-If this is registered as a filter, you can now in your templates use the
-expression ``product:price|dollar_format``, or even override the currency
-symbol using ``product:price|dollar_format:'¥'``
+    # Register the filter
+    stencil.FILTERS['dollar_format'] = dollar_format
+
+You can now in your templates use the expression
+``product:price|dollar_format``, or even override the currency symbol using
+``product:price|dollar_format:'¥'``.
 
 Filters can be chained, one after another.
 

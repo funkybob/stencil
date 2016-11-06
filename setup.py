@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='stencil-template',
-    version='1.1.1',
+    version='1.2.0',
     description='A template engine light enough to embed in your project.',
     url='https://github.com/funkybob/stencil/',
     author='Curtis Maloney',

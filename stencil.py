@@ -50,10 +50,9 @@ class TemplateLoader(dict):
 
 
 class Context(object):
-    def __init__(self, data, filters=None):
+    def __init__(self, data):
         self._stack = deque({'True': True, 'False': False, 'None': None})
         self.push(**data)
-        self.filters = filters or {}
 
     def push(self, **kwargs):
         self._stack.appendleft(kwargs)
@@ -125,6 +124,9 @@ class Template(object):
         return output.getvalue()
 
 
+FILTERS = {}  # Map of filter names to filter functions
+
+
 class Tokens(object):
     def __init__(self, source):
         self.tokens = tokenize.generate_tokens(io.StringIO(source).readline)
@@ -141,7 +143,10 @@ class Tokens(object):
             self.next()
             assert self.current[0] == tokenize.NAME, \
                 "Invalid syntax in expression at %d.  Expected name." % (self.current[2][1],)
-            filt = self.current[1]
+            try:
+                filt = FILTERS[self.current[1]]
+            except KeyError:
+                raise SyntaxError("Invalid filter at %d: %s" % (self.current[2][1], self.current[1]))
             args = []
             self.next()
             if self.current[0] == tokenize.OP and self.current[1] == ':':
@@ -218,13 +223,8 @@ class Expression(object):
         value = resolve_lookup(context, self.value)
 
         for filt, args in self.filters:
-            args = [resolve_lookup(context, arg) for arg in args]
-            try:
-                func = context.filters[filt]
-            except KeyError:
-                raise SyntaxError("Unknown filter function %s : %s -> %s" % (filt, self.value, self.filters))
-            else:
-                value = func(value, *args)
+            value = filt(value, *[resolve_lookup(context, arg) for arg in args])
+
         return value
 
 

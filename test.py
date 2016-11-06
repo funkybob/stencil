@@ -4,9 +4,9 @@ import json
 
 import stencil
 
-filters = {
+stencil.FILTERS.update({
     'title': unicode.title,
-}
+})
 
 loader = stencil.TemplateLoader(['tmpl/'])
 
@@ -28,7 +28,7 @@ for fn in sorted(glob.glob('tmpl/*.tpl')):
     with open(base + '.json', 'r') as fin:
         data = json.load(fin)
 
-    c = stencil.Context(data, filters)
+    c = stencil.Context(data)
     result = t.render(c)
 
     assert result == out, "Mismatched output for %r\n%r\n%r" % (fn, out, result)

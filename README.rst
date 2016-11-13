@@ -40,4 +40,4 @@ Quick Start
       # Should output "Good morning, Ruprect!"
 
 
-See the `documentation <stencil-templates.readthedocs.io/en/latest/>`_ to see more details.
+See the `documentation <https://stencil-templates.readthedocs.io/en/latest/>`_ to see more details.

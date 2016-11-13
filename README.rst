@@ -16,13 +16,13 @@ Quick Start
 
       $ mkdir tmpl
 
-1. Create a simple template:
+2. Create a simple template:
 
    .. code-block:: html
 
       Good morning, {{ name }}!
 
-1. Write a script to use it
+3. Write a script to use it
 
    .. code-block:: python
 

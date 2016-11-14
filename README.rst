@@ -30,7 +30,7 @@ Quick Start
 
       from .utils import escape
 
-      stencil.FILTRES['escape'] = escape
+      stencil.FILTERS['escape'] = escape
       loader = stencil.TemplateLoader(['tmpl/'])
 
       t = loader['index.html']

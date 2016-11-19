@@ -102,7 +102,6 @@ class Template(object):
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
 
-
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
         node = next(self.parse())
@@ -158,7 +157,7 @@ class Tokens(object):
 
         if end:
             self.assert_end()
-        return value, filters
+        return Expression(value, filters)
 
     def parse_argument(self):
         '''
@@ -198,8 +197,7 @@ class Tokens(object):
             assert self.current[0] == tokenize.OP and self.current[1] == '=', \
                 'Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1])
             self.next()
-            value, filters = self.parse_filter_expression()
-            kwargs[key] = Expression(value, filters)
+            kwargs[key] = self.parse_filter_expression()
 
         if end:
             self.assert_end()
@@ -209,10 +207,9 @@ class Tokens(object):
         assert self.current[0] == tokenize.ENDMARKER, \
             "Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1])
 
-
-def parse_expression(expr):
-    value, filters = Tokens(expr).parse_filter_expression(end=True)
-    return Expression(value, filters)
+    @staticmethod
+    def parse_expression(source):
+        return Tokens(source).parse_filter_expression(end=True)
 
 
 class Expression(object):
@@ -271,7 +268,7 @@ class TextTag(Node):
 
 class VarTag(Node):
     def __init__(self, content):
-        self.expr = parse_expression(content)
+        self.expr = Tokens.parse_expression(content)
 
     def render(self, context, output):
         output.write(unicode(self.expr.resolve(context)))
@@ -316,7 +313,7 @@ class ForTag(BlockNode):
         elselist = None
         if nodelist.endnode.name == 'else':
             elselist = parser.parse_nodelist({'endfor'})
-        return cls(argname.strip(), parse_expression(iterable.strip()), nodelist, elselist)
+        return cls(argname.strip(), Tokens.parse_expression(iterable.strip()), nodelist, elselist)
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
@@ -346,7 +343,7 @@ class IfTag(BlockNode):
     def __init__(self, condition, nodelist, elselist):
         condition, inv = re.subn(r'^not\s+', '', condition, count=1)
         self.inv = bool(inv)
-        self.condition = parse_expression(condition)
+        self.condition = Tokens.parse_expression(condition)
         self.nodelist = nodelist
         self.elselist = elselist
 
@@ -384,8 +381,7 @@ class IncludeTag(BlockNode):
         assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
         tokens = Tokens(content)
 
-        value, filters = tokens.parse_filter_expression()
-        template_name = Expression(value, filters)
+        template_name = tokens.parse_filter_expression()
 
         kwargs = tokens.parse_kwargs(end=True)
 
@@ -417,7 +413,7 @@ class ExtendsTag(BlockNode):
 
     @classmethod
     def parse(cls, content, parser):
-        parent = parse_expression(content)
+        parent = Tokens.parse_expression(content)
         nodelist = parser.parse_nodelist([])
         return cls(parent, parser.loader, nodelist)
 

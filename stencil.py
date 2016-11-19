@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import importlib
 import io
 import os
@@ -229,7 +227,7 @@ class Expression(object):
 
 
 def resolve_lookup(context, parts, default=''):
-    if isinstance(parts, (int, float, basestring)):
+    if isinstance(parts, (int, float, str)):
         return parts
     parts = iter(parts)
     try:
@@ -274,7 +272,7 @@ class VarTag(Node):
         self.expr = parse_expression(content)
 
     def render(self, context, output):
-        output.write(unicode(self.expr.resolve(context)))
+        output.write(str(self.expr.resolve(context)))
 
 
 class BlockMeta(type):
@@ -285,8 +283,7 @@ class BlockMeta(type):
         return cls
 
 
-class BlockNode(Node):
-    __metaclass__ = BlockMeta
+class BlockNode(Node, metaclass=BlockMeta):
     __tags__ = {}
     child_nodelists = ('nodelist',)
 

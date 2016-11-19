@@ -16,6 +16,10 @@ tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<c
 Token = namedtuple('Token', 'type content')
 
 
+def escape(val):
+    return val.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#39;')
+
+
 def tokenise(template):
     upto = 0
 
@@ -50,7 +54,8 @@ class TemplateLoader(dict):
 
 
 class Context(object):
-    def __init__(self, data):
+    def __init__(self, data, autoescape=False):
+        self.autoescape = autoescape
         self._stack = deque({'True': True, 'False': False, 'None': None})
         self.push(**data)
 
@@ -123,7 +128,10 @@ class Template(object):
         return output.getvalue()
 
 
-FILTERS = {}  # Map of filter names to filter functions
+# Map of filter names to filter functions
+FILTERS = {
+    'escape': escape,
+}
 
 
 class Tokens(object):
@@ -271,7 +279,10 @@ class VarTag(Node):
         self.expr = Tokens.parse_expression(content)
 
     def render(self, context, output):
-        output.write(unicode(self.expr.resolve(context)))
+        val = unicode(self.expr.resolve(context))
+        if context.autoescape:
+            val = escape(val)
+        output.write(val)
 
 
 class BlockMeta(type):

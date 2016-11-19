@@ -20,7 +20,7 @@ Quick Start
 
    .. code-block:: html
 
-      Good morning, {{ name }}!
+      Good morning, {{ name|escape }}!
 
 3. Write a script to use it
 

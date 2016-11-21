@@ -18,19 +18,19 @@ def test_tokenise():
 
     it_token = stencil.tokenise('abc {{ x }} xyz')
 
-    token = it_token.next()
+    token = next(it_token)
     assert token is not None
     assert isinstance(token, Token)
     assert token.type == 'text'
     assert token.content == 'abc '
 
-    token = it_token.next()
+    token = next(it_token)
     assert token is not None
     assert isinstance(token, Token)
     assert token.type == 'var'
     assert token.content == 'x'
 
-    token = it_token.next()
+    token = next(it_token)
     assert token is not None
     assert isinstance(token, Token)
     assert token.type == 'text'

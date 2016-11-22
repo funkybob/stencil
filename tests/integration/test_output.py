@@ -24,7 +24,7 @@ class IntegrationTestCase(unittest.TestCase):
             'title': string.capwords,
         })
 
-        loader = stencil.TemplateLoader(['tmpl/'])
+        loader = stencil.TemplateLoader(['tests/integration/tmpl/'])
 
         counter = 0
         for fn in sorted(glob.glob('tests/integration/tmpl/*.tpl')):
@@ -32,10 +32,12 @@ class IntegrationTestCase(unittest.TestCase):
             base, ext = os.path.splitext(fn)
 
             try:
+                print(fn,)
+                print(os.path.basename(fn))
                 t = loader.load(os.path.basename(fn))
             except:
                 eargs = sys.exc_info()
-                assert False, '[%s]\n%s' % (fn, traceback.format_exception(*eargs))
+                assert False, '[%s]\n%s' % (fn, ''.join(traceback.format_exception(*eargs)))
 
             with open(base + '.out', 'r') as fin:
                 out = fin.read()
@@ -49,4 +51,4 @@ class IntegrationTestCase(unittest.TestCase):
             assert result == out, 'Mismatched output for %r\n%r\n%r' % (fn, out, result)
             counter += 1
 
-        assert counter == 31, 'Expected 31 test run as opposed to %d' % counter
+        assert counter == 10, 'Expected 10 test runs as opposed to %d' % counter

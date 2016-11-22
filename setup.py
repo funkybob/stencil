@@ -1,4 +1,14 @@
+# -*- coding: utf-8 -*-
+
+import unittest
+
 from setuptools import setup
+
+
+def test_suite():
+    """Return tests suite."""
+    test_loader = unittest.defaultTestLoader
+    return test_loader.discover('tests', pattern='test*.py')
 
 
 setup(
@@ -16,4 +26,5 @@ setup(
     ],
     keywords='template',
     py_modules=['stencil',],
+    test_suite='__main__.test_suite',
 )

@@ -4,14 +4,7 @@ import unittest
 
 import stencil
 
-from stencil import BlockNode, Token
-
-
-class TestTag(BlockNode):
-    name = 'test'
-
-    def render(self, context, output):
-        output.write(u'test')
+from stencil import Token
 
 
 class ModuleTestCase(unittest.TestCase):

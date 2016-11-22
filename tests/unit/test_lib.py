@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import unittest
 
 import stencil
 
@@ -13,25 +14,26 @@ class TestTag(BlockNode):
         output.write(u'test')
 
 
-def test_tokenise():
-    """Test :py:func:`stencil.tokenise` function."""
+class ModuleTestCase(unittest.TestCase):
+    """Test cases for the stencil module."""
 
-    it_token = stencil.tokenise('abc {{ x }} xyz')
+    @staticmethod
+    def test_tokenise():
+        """Test stencil.tokenise() function."""
 
-    token = next(it_token)
-    assert token is not None
-    assert isinstance(token, Token)
-    assert token.type == 'text'
-    assert token.content == 'abc '
+        it_token = stencil.tokenise('abc {{ x }} xyz')
 
-    token = next(it_token)
-    assert token is not None
-    assert isinstance(token, Token)
-    assert token.type == 'var'
-    assert token.content == 'x'
+        token = next(it_token)
+        assert isinstance(token, Token)
+        assert token.type == 'text'
+        assert token.content == 'abc '
 
-    token = next(it_token)
-    assert token is not None
-    assert isinstance(token, Token)
-    assert token.type == 'text'
-    assert token.content == ' xyz'
+        token = next(it_token)
+        assert isinstance(token, Token)
+        assert token.type == 'var'
+        assert token.content == 'x'
+
+        token = next(it_token)
+        assert isinstance(token, Token)
+        assert token.type == 'text'
+        assert token.content == ' xyz'

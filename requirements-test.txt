@@ -1,6 +1,3 @@
+coverage
 mock
-pylint
-pytest
-pytest-cov
-pytest-pep8
-pytest-xdist
+pep8

@@ -149,6 +149,7 @@ class Tokens(object):
             args = []
             self.next()
             if self.current[0] == tokenize.OP and self.current[1] == ':':
+                self.next()
                 term = self.parse_argument()
                 args.append(term)
                 while self.current[0] == tokenize.OP and self.current[1] == ',':
@@ -160,9 +161,7 @@ class Tokens(object):
         return Expression(value, filters)
 
     def parse_argument(self):
-        '''
-        Parse either a string literal, int/float literal, or lookup sequence
-        '''
+        ''' Parse either a string literal, int/float literal, or lookup sequence '''
         if self.current[0] == tokenize.STRING:
             value = self.current[1][1:-1]
             self.next()
@@ -177,7 +176,7 @@ class Tokens(object):
         elif self.current[0] == tokenize.NAME:
             var = [self.current[1]]
             self.next()
-            while self.current[0:2] == (tokenize.OP, ':'):
+            if self.current[0] == tokenize.OP and self.current[1] == u':':
                 self.next()
                 assert self.current[0] in (tokenize.NAME, tokenize.NUMBER), \
                     "Invalid syntax in expression at %d: %r" % (self.current[2][1], self.current[-1])

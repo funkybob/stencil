@@ -4,9 +4,7 @@ from __future__ import print_function
 
 
 import sys
-import os
 
-import glob
 import json
 import string
 import traceback
@@ -35,9 +33,8 @@ class IntegrationTestCase(unittest.TestCase):
         try:
             t = self.loader.load('%s.tpl' % base)
         except:
-            exc_args = sys.exc_info()
             assert False, '[%s]\n%s' % (
-                base, ''.join(traceback.format_exception(*exc_args))
+                base, ''.join(traceback.format_exc())
             )
 
         out = self.read_text_data(base)
@@ -46,7 +43,7 @@ class IntegrationTestCase(unittest.TestCase):
         c = stencil.Context(data)
         result = t.render(c)
 
-        assert result == out, 'Mismatched output for %r\n%r\n%r' % (fn, out, result)
+        assert result == out, 'Mismatched output for %r\n%r\n%r' % (base, out, result)
 
     def read_json_data(self, file_name):
         """Return JSON data for the given template test.
@@ -86,6 +83,10 @@ class IntegrationTestCase(unittest.TestCase):
 
     def test_filter(self):
         self.assert_output('05_filter')
+
+    def test_filter_args(self):
+        stencil.FILTERS['join'] = lambda x, n: n.join(x)
+        self.assert_output('05_filter_args')
 
     def test_include(self):
         self.assert_output('06_include')

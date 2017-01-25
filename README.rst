@@ -34,7 +34,7 @@ Quick Start
       loader = stencil.TemplateLoader(['tmpl/'])
 
       t = loader['index.html']
-      c = stencil.Contxt({'name': 'Ruprect'})
+      c = stencil.Context({'name': 'Ruprect'})
 
       print t.render(c)
       # Should output "Good morning, Ruprect!"

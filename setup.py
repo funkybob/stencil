@@ -13,7 +13,7 @@ def test_suite():
 
 setup(
     name='stencil-template',
-    version='1.2.1',
+    version='1.2.2',
     description='A template engine light enough to embed in your project.',
     url='https://github.com/funkybob/stencil/',
     author='Curtis Maloney',

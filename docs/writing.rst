@@ -267,3 +267,23 @@ expressions.  This can help avoid repeated work.
    {% with url=page|make_url %}
    <a href="{{ url }}" class="link {% if url|is_current_url %}current{% endif %}">{{ page:title }}</a>
    {% endwith %}
+
+
+case/when
+---------
+
+Allows switching between multiple blocks of template depending on the value of
+a variable.
+
+.. code-block:: html
+
+   {% case foo.bar %}
+   {% when 1 %}
+   You got one!
+   {% when 2 %}
+   You got two!
+   {% else %}
+   You got some!
+   {% endcase %}
+
+The optional `{% else %}` clause is used if no when cases match.

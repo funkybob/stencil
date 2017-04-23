@@ -102,3 +102,6 @@ class IntegrationTestCase(unittest.TestCase):
 
     def test_extends(self):
         self.assert_output('10_extends')
+
+    def test_with(self):
+        self.assert_output('11_with')

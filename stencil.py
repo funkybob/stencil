@@ -449,9 +449,10 @@ class WithTag(BlockNode):
         return cls(kwargs, nodelist)
 
     def render(self, context, output):
-        kwargs = {key: value.resolve(context) for key, value in self.kwargs}
-        self.nodelist.render(context, output)
+        kwargs = {key: value.resolve(context) for key, value in self.kwargs.items()}
         context.push(**kwargs)
+        self.nodelist.render(context, output)
+        context.pop()
 
 
 class EndWithTag(BlockNode):

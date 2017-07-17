@@ -40,4 +40,11 @@ Quick Start
       # Should output "Good morning, Ruprect!"
 
 
+Python support
+--------------
+
+As of stencil v2, only Python 3.4+ is supported.
+
+Stencil 1.2.3 is the last stable Python 2.7 version.
+
 See the `documentation <https://stencil-templates.readthedocs.io/en/latest/>`_ to see more details.

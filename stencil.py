@@ -1,11 +1,9 @@
-from __future__ import unicode_literals
-
 import importlib
 import io
 import os
 import re
 import tokenize
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, deque, namedtuple, ChainMap
 
 FILTERS = {}  # Map of filter names to filter functions
 TOK_COMMENT = 'comment'
@@ -47,25 +45,15 @@ class TemplateLoader(dict):
         return tmpl
 
 
-class Context(object):
-    def __init__(self, data):
-        self._stack = deque({'True': True, 'False': False, 'None': None})
-        self.push(**data)
+class Context(ChainMap):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        pass
 
     def push(self, **kwargs):
-        self._stack.appendleft(kwargs)
-
-    def pop(self):
-        self._stack.popleft()
-
-    def __getitem__(self, key):
-        for layer in self._stack:
-            if key in layer:
-                return layer[key]
-        raise KeyError(key)
-
-    def __setitem__(self, key, value):
-        self._stack[0][key] = value
+        return self.new_child(kwargs)
 
 
 class Nodelist(list):
@@ -78,8 +66,7 @@ class Nodelist(list):
             if isinstance(node, node_type):
                 yield node
             if isinstance(node, BlockNode):
-                for child in node.nodes_by_type(node_type):
-                    yield child
+                yield from node.nodes_by_type(node_type)
 
 
 class Template(object):
@@ -213,7 +200,7 @@ class Expression(object):
 
 
 def resolve_lookup(context, parts, default=''):
-    if isinstance(parts, (int, float, basestring)):
+    if isinstance(parts, (int, float, str)):
         return parts
     parts = iter(parts)
     try:
@@ -258,7 +245,7 @@ class VarTag(Node):
         self.expr = Tokens.parse_expression(content)
 
     def render(self, context, output):
-        output.write(unicode(self.expr.resolve(context)))
+        output.write(str(self.expr.resolve(context)))
 
 
 class BlockMeta(type):
@@ -269,8 +256,7 @@ class BlockMeta(type):
         return cls
 
 
-class BlockNode(Node):
-    __metaclass__ = BlockMeta
+class BlockNode(Node, metaclass=BlockMeta):
     __tags__ = {}
     child_nodelists = ('nodelist',)
 
@@ -282,8 +268,7 @@ class BlockNode(Node):
         for attr in self.child_nodelists:
             nodelist = getattr(self, attr, None)
             if nodelist:
-                for node in nodelist.nodes_by_type(node_type):
-                    yield node
+                yield from nodelist.nodes_by_type(node_type)
 
 
 class ForTag(BlockNode):
@@ -305,12 +290,11 @@ class ForTag(BlockNode):
         if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
-            context.push()
-            for idx, item in enumerate(iterable):
-                context['loopcounter'] = idx
-                context[self.argname] = item
-                self.nodelist.render(context, output)
-            context.pop()
+            with context.push():
+                for idx, item in enumerate(iterable):
+                    context['loopcounter'] = idx
+                    context[self.argname] = item
+                    self.nodelist.render(context, output)
 
 
 class ElseTag(BlockNode):
@@ -368,9 +352,8 @@ class IncludeTag(BlockNode):
         name = self.template_name.resolve(context)
         tmpl = self.loader[name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
-        context.push(**kwargs)
-        tmpl.render(context, output)
-        context.pop()
+        with context.push(**kwargs) as subcontext:
+            tmpl.render(subcontext, output)
 
 
 class LoadTag(BlockNode):
@@ -427,9 +410,8 @@ class BlockTag(BlockNode):
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        context.push()
-        block.nodelist.render(context, output)
-        context.pop()
+        with context.push():
+            block.nodelist.render(context, output)
 
 
 class EndBlockTag(BlockNode):
@@ -450,9 +432,8 @@ class WithTag(BlockNode):
 
     def render(self, context, output):
         kwargs = {key: value.resolve(context) for key, value in self.kwargs.items()}
-        context.push(**kwargs)
-        self.nodelist.render(context, output)
-        context.pop()
+        with context.push(**kwargs) as ctx:
+            self.nodelist.render(ctx, output)
 
 
 class EndWithTag(BlockNode):

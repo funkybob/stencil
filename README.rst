@@ -1,7 +1,7 @@
 stencil
 =======
 
-A minimalist template engine for Python
+A minimalist template engine for Python3
 
 The goal of Stencil is to provide just enough of a template engine in a single file.
 

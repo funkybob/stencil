@@ -3,7 +3,7 @@ import io
 import os
 import re
 import tokenize
-from collections import defaultdict, deque, namedtuple, ChainMap
+from collections import defaultdict, deque, namedtuple
 
 FILTERS = {}  # Map of filter names to filter functions
 TOK_COMMENT = 'comment'
@@ -45,15 +45,30 @@ class TemplateLoader(dict):
         return tmpl
 
 
-class Context(ChainMap):
+class Context:
+    def __init__(self, data=None):
+        self._maps = deque([{'True': True, 'False': False, 'None': None}])
+        if data:
+            self._maps.appendleft(data)
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        pass
+        self._maps.popleft()
 
     def push(self, **kwargs):
-        return self.new_child(kwargs)
+        self._maps.appendleft(kwargs)
+        return self
+
+    def __getitem__(self, key):
+        for step in self._maps:
+            if key in step:
+                return step[key]
+        raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        self._maps[0][key] = value
 
 
 class Nodelist(list):

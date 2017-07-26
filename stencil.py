@@ -59,14 +59,14 @@ class Context:
         self.maps[0][key] = value
 
     def __enter__(self):
+        self.maps.appendleft({})
         return self
 
     def __exit__(self, *args, **kwargs):
         self.maps.popleft()
 
-    def push(self, **kwargs):
-        self.maps.appendleft(kwargs)
-        return self
+    def update(self, *args, **kwargs):
+        self.maps[0].update(*args, **kwargs)
 
 
 class Nodelist(list):
@@ -303,7 +303,7 @@ class ForTag(BlockNode):
         if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
-            with context.push():
+            with context:
                 for idx, item in enumerate(iterable):
                     context['loopcounter'] = idx
                     context[self.argname] = item
@@ -365,7 +365,8 @@ class IncludeTag(BlockNode):
         name = self.template_name.resolve(context)
         tmpl = self.loader[name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
-        with context.push(**kwargs):
+        with context:
+            context.update(kwargs)
             tmpl.render(context, output)
 
 
@@ -423,7 +424,7 @@ class BlockTag(BlockNode):
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        with context.push():
+        with context:
             block.nodelist.render(context, output)
 
 
@@ -445,7 +446,8 @@ class WithTag(BlockNode):
 
     def render(self, context, output):
         kwargs = {key: value.resolve(context) for key, value in self.kwargs.items()}
-        with context.push(**kwargs):
+        with context:
+            context.update(kwargs)
             self.nodelist.render(context, output)
 
 

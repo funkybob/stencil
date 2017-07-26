@@ -195,8 +195,8 @@ class Tokens(object):
         return kwargs
 
     def assert_end(self):
-        assert self.current[0] == tokenize.ENDMARKER, \
-            "Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1])
+        if self.current[0] != tokenize.ENDMARKER:
+            raise SyntaxError("Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1]))
 
     @staticmethod
     def parse_expression(source):

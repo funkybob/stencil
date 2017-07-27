@@ -3,7 +3,7 @@ import io
 import os
 import re
 import tokenize
-from collections import defaultdict, deque, namedtuple, ChainMap
+from collections import defaultdict, deque, namedtuple
 
 FILTERS = {}  # Map of filter names to filter functions
 TOK_COMMENT = 'comment'
@@ -45,15 +45,28 @@ class TemplateLoader(dict):
         return tmpl
 
 
-class Context(ChainMap):
+class Context:
+    def __init__(self, *args):
+        self.maps = deque(({'True': True, 'False': False, 'None': None},) + args)
+
+    def __getitem__(self, key):
+        for step in self.maps:
+            if key in step:
+                return step[key]
+        raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        self.maps[0][key] = value
+
     def __enter__(self):
+        self.maps.appendleft({})
         return self
 
-    def __exit__(self, exc_type, exc_value, tb):
-        pass
+    def __exit__(self, *args, **kwargs):
+        self.maps.popleft()
 
-    def push(self, **kwargs):
-        return self.new_child(kwargs)
+    def update(self, *args, **kwargs):
+        self.maps[0].update(*args, **kwargs)
 
 
 class Nodelist(list):
@@ -180,8 +193,8 @@ class Tokens(object):
         return kwargs
 
     def assert_end(self):
-        assert self.current[0] == tokenize.ENDMARKER, \
-            "Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1])
+        if self.current[0] != tokenize.ENDMARKER:
+            raise SyntaxError("Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1]))
 
     @staticmethod
     def parse_expression(source):
@@ -290,7 +303,7 @@ class ForTag(BlockNode):
         if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
-            with context.push():
+            with context:
                 for idx, item in enumerate(iterable):
                     context['loopcounter'] = idx
                     context[self.argname] = item
@@ -352,8 +365,9 @@ class IncludeTag(BlockNode):
         name = self.template_name.resolve(context)
         tmpl = self.loader[name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
-        with context.push(**kwargs) as subcontext:
-            tmpl.render(subcontext, output)
+        with context:
+            context.update(kwargs)
+            tmpl.render(context, output)
 
 
 class LoadTag(BlockNode):
@@ -410,7 +424,7 @@ class BlockTag(BlockNode):
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        with context.push():
+        with context:
             block.nodelist.render(context, output)
 
 
@@ -432,8 +446,9 @@ class WithTag(BlockNode):
 
     def render(self, context, output):
         kwargs = {key: value.resolve(context) for key, value in self.kwargs.items()}
-        with context.push(**kwargs) as ctx:
-            self.nodelist.render(ctx, output)
+        with context:
+            context.update(kwargs)
+            self.nodelist.render(context, output)
 
 
 class EndWithTag(BlockNode):

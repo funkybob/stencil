@@ -43,6 +43,7 @@ Quick Start
 Python support
 --------------
 
+As of stencil v2.1, only Python 3.6+ is supported.
 As of stencil v2, only Python 3.4+ is supported.
 
 Stencil 1.2.3 is the last stable Python 2.7 version.

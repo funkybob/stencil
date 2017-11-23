@@ -80,8 +80,7 @@ All tags derive from the ``stencil.BlockNode`` class, and self-register with
 
     from stencil import BlockNode
 
-    class MyTag(BlockNode):
-        name = 'my'  # This is matched in {% my %}
+    class MyTag(BlockNode, name='my'):  # This is matched in {% my %}
 
 When ``stencil`` finds a tag matching this name, it will call the
 ``BlockNode.parse`` classmethod, passing it the rest of the tag content, and

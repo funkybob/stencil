@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-
-from __future__ import print_function
-
-
-import sys
-
 import json
 import string
+import sys
 import traceback
 import unittest
 

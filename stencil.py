@@ -38,7 +38,7 @@ class TemplateLoader(dict):
             if os.path.isfile(full_path):
                 with io.open(full_path, 'r') as fin:
                     return Template(fin.read(), loader=self)
-        raise ValueError(name)
+        raise LookupError(name)
 
     def __missing__(self, key):
         self[key] = tmpl = self.load(key)
@@ -47,26 +47,25 @@ class TemplateLoader(dict):
 
 class Context:
     def __init__(self, *args):
-        self.maps = deque(({'True': True, 'False': False, 'None': None},) + args)
+        self._maps = deque(({'True': True, 'False': False, 'None': None},) + args)
+
+    def __enter__(self):
+        self._maps.appendleft({})
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self._maps.popleft()
 
     def __getitem__(self, key):
-        for step in self.maps:
+        for step in self._maps:
             if key in step:
                 return step[key]
         raise KeyError(key)
 
     def __setitem__(self, key, value):
-        self.maps[0][key] = value
-
-    def __enter__(self):
-        self.maps.appendleft({})
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        self.maps.popleft()
+        self._maps[0][key] = value
 
     def update(self, *args, **kwargs):
-        self.maps[0].update(*args, **kwargs)
+        self._maps[0].update(*args, **kwargs)
 
 
 class Nodelist(list):
@@ -133,8 +132,8 @@ class Tokens(object):
         filters = []
         while self.current[0:2] == (tokenize.OP, '|'):
             self.next()
-            assert self.current[0] == tokenize.NAME, \
-                "Invalid syntax in expression at %d.  Expected name." % (self.current[2][1],)
+            if self.current[0] != tokenize.NAME:
+                raise SyntaxError("Invalid syntax in expression at %d.  Expected name." % (self.current[2][1],))
             try:
                 filt = FILTERS[self.current[1]]
             except KeyError:
@@ -170,8 +169,8 @@ class Tokens(object):
             self.next()
             if self.current[0] == tokenize.OP and self.current[1] == u':':
                 self.next()
-                assert self.current[0] in (tokenize.NAME, tokenize.NUMBER), \
-                    "Invalid syntax in expression at %d: %r" % (self.current[2][1], self.current[-1])
+                if self.current[0] not in (tokenize.NAME, tokenize.NUMBER):
+                    raise SyntaxError("Invalid syntax in expression at %d: %r" % (self.current[2][1], self.current[-1]))
                 var.append(self.current[1])
                 self.next()
             return var
@@ -180,12 +179,12 @@ class Tokens(object):
     def parse_kwargs(self, end=False):
         kwargs = {}
         while self.current[0] != tokenize.ENDMARKER:
-            assert self.current[0] == tokenize.NAME, \
-                'Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1])
+            if self.current[0] != tokenize.NAME:
+                raise SyntaxError('Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1]))
             key = self.current[1]
             self.next()
-            assert self.current[0] == tokenize.OP and self.current[1] == '=', \
-                'Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1])
+            if not (self.current[0] == tokenize.OP and self.current[1] == '='):
+                raise SyntaxError('Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1]))
             self.next()
             kwargs[key] = self.parse_filter_expression()
         if end:
@@ -261,17 +260,16 @@ class VarTag(Node):
         output.write(str(self.expr.resolve(context)))
 
 
-class BlockMeta(type):
-    def __new__(mcs, name, bases, attrs):
-        cls = super(BlockMeta, mcs).__new__(mcs, name, bases, attrs)
-        if 'name' in attrs:
-            BlockNode.__tags__[attrs['name']] = cls
-        return cls
-
-
-class BlockNode(Node, metaclass=BlockMeta):
+class BlockNode(Node):
     __tags__ = {}
     child_nodelists = ('nodelist',)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__()
+        if 'name' in kwargs:
+            cls.name = kwargs['name']
+            BlockNode.__tags__[kwargs.pop('name')] = cls
+        return cls
 
     @classmethod
     def parse(cls, content, parser):
@@ -284,8 +282,7 @@ class BlockNode(Node, metaclass=BlockMeta):
                 yield from nodelist.nodes_by_type(node_type)
 
 
-class ForTag(BlockNode):
-    name = 'for'
+class ForTag(BlockNode, name='for'):
     child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, argname, iterable, nodelist, elselist):
@@ -305,21 +302,19 @@ class ForTag(BlockNode):
         else:
             with context:
                 for idx, item in enumerate(iterable):
-                    context['loopcounter'] = idx
-                    context[self.argname] = item
+                    context.update({'loopcounter': idx, self.argname: item})
                     self.nodelist.render(context, output)
 
 
-class ElseTag(BlockNode):
-    name = 'else'
+class ElseTag(BlockNode, name='else'):
+    pass
 
 
-class EndforTag(BlockNode):
-    name = 'endfor'
+class EndforTag(BlockNode, name='endfor'):
+    pass
 
 
-class IfTag(BlockNode):
-    name = 'if'
+class IfTag(BlockNode, name='if'):
     child_nodelists = ('nodelist', 'elselist')
 
     def __init__(self, condition, nodelist, elselist):
@@ -343,19 +338,19 @@ class IfTag(BlockNode):
         return self.inv ^ bool(self.condition.resolve(context))
 
 
-class EndifTag(BlockNode):
-    name = 'endif'
+class EndifTag(BlockNode, name='endif'):
+    pass
 
 
-class IncludeTag(BlockNode):
-    name = 'include'
+class IncludeTag(BlockNode, name='include'):
 
     def __init__(self, template_name, kwargs, loader):
         self.template_name, self.kwargs, self.loader = template_name, kwargs, loader
 
     @classmethod
     def parse(cls, content, parser):
-        assert parser.loader is not None, "Can't use {% include %} without a bound Loader"
+        if parser.loader is None:
+            raise RuntimeError("Can't use {% include %} without a bound Loader")
         tokens = Tokens(content)
         template_name = tokens.parse_filter_expression()
         kwargs = tokens.parse_kwargs(end=True)
@@ -370,8 +365,7 @@ class IncludeTag(BlockNode):
             tmpl.render(context, output)
 
 
-class LoadTag(BlockNode):
-    name = 'load'
+class LoadTag(BlockNode, name='load'):
 
     @classmethod
     def parse(cls, content, parser):
@@ -379,8 +373,7 @@ class LoadTag(BlockNode):
         return cls(None)
 
 
-class ExtendsTag(BlockNode):
-    name = 'extends'
+class ExtendsTag(BlockNode, name='extends'):
 
     def __init__(self, parent, loader, nodelist):
         self.parent, self.loader, self.nodelist = parent, loader, nodelist
@@ -398,14 +391,13 @@ class ExtendsTag(BlockNode):
             block_context = context.block_context = defaultdict(deque)
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].append(block)
-        if not isinstance(parent.nodelist[0], ExtendsTag):
+        if parent.nodelist[0].name != 'extends':
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].append(block)
         parent.render(context, output)
 
 
-class BlockTag(BlockNode):
-    name = 'block'
+class BlockTag(BlockNode, name='block'):
 
     def __init__(self, name, nodelist):
         self.block_name, self.nodelist = name, nodelist
@@ -418,8 +410,6 @@ class BlockTag(BlockNode):
 
     def render(self, context, output):
         block_context = getattr(context, 'block_context', None)
-        if block_context is None:
-            block_context = context.block_context = defaultdict(deque)
         if not block_context:
             block = self
         else:
@@ -428,12 +418,11 @@ class BlockTag(BlockNode):
             block.nodelist.render(context, output)
 
 
-class EndBlockTag(BlockNode):
-    name = 'endblock'
+class EndBlockTag(BlockNode, name='endblock'):
+    pass
 
 
-class WithTag(BlockNode):
-    name = 'with'
+class WithTag(BlockNode, name='with'):
 
     def __init__(self, kwargs, nodelist):
         self.kwargs, self.nodelist = kwargs, nodelist
@@ -451,12 +440,11 @@ class WithTag(BlockNode):
             self.nodelist.render(context, output)
 
 
-class EndWithTag(BlockNode):
-    name = 'endwith'
+class EndWithTag(BlockNode, name='endwith'):
+    pass
 
 
-class CaseTag(BlockNode):
-    name = 'case'
+class CaseTag(BlockNode, name='case'):
 
     def __init__(self, term, nodelist):
         self.term, self.nodelist = term, nodelist
@@ -488,7 +476,7 @@ class CaseTag(BlockNode):
                 return
 
 
-class WhenTag(BlockNode):
+class WhenTag(BlockNode, name='when'):
     name = 'when'
 
     def __init__(self, term, nodelist):
@@ -504,5 +492,5 @@ class WhenTag(BlockNode):
         self.nodelist.render(context, output)
 
 
-class EndCaseTag(BlockNode):
-    name = 'endcase'
+class EndCaseTag(BlockNode, name='endcase'):
+    pass

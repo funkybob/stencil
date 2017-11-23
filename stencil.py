@@ -170,7 +170,9 @@ class Tokens(object):
             if self.current[0] == tokenize.OP and self.current[1] == u':':
                 self.next()
                 if self.current[0] not in (tokenize.NAME, tokenize.NUMBER):
-                    raise SyntaxError("Invalid syntax in expression at %d: %r" % (self.current[2][1], self.current[-1]))
+                    raise SyntaxError("Invalid syntax in expression at %d: %r" % (
+                        self.current[2][1], self.current[-1]
+                    ))
                 var.append(self.current[1])
                 self.next()
             return var

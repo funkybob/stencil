@@ -3,7 +3,7 @@ import re
 import tokenize
 from io import StringIO
 from pathlib import Path
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, deque, namedtuple, ChainMap
 
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
@@ -43,27 +43,20 @@ class TemplateLoader(dict):
         return tmpl
 
 
-class Context:
+class Context(ChainMap):
     def __init__(self, *args):
-        self._maps = deque(({'True': True, 'False': False, 'None': None},) + args)
+        super().__init__(*args)
+        self.maps.append({'True': True, 'False': False, 'None': None})
+
+    def push(self, data=None):
+        self.maps.insert(0, data or {})
+        return self
 
     def __enter__(self):
-        self._maps.appendleft({})
+        return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self._maps.popleft()
-
-    def __getitem__(self, key):
-        for step in self._maps:
-            if key in step:
-                return step[key]
-        raise KeyError(key)
-
-    def __setitem__(self, key, value):
-        self._maps[0][key] = value
-
-    def update(self, *args, **kwargs):
-        self._maps[0].update(*args, **kwargs)
+        self.maps.pop(0)
 
 
 class Nodelist(list):
@@ -308,7 +301,7 @@ class ForTag(BlockNode, name='for'):
         if self.elselist and not iterable:
             self.elselist.render(context, output)
         else:
-            with context:
+            with context.push():
                 for idx, item in enumerate(iterable):
                     context.update({'loopcounter': idx, self.argname: item})
                     self.nodelist.render(context, output)
@@ -368,8 +361,7 @@ class IncludeTag(BlockNode, name='include'):
         name = self.template_name.resolve(context)
         tmpl = self.loader[name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
-        with context:
-            context.update(kwargs)
+        with context.push(kwargs):
             tmpl.render(context, output)
 
 
@@ -422,7 +414,7 @@ class BlockTag(BlockNode, name='block'):
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        with context:
+        with context.push():
             block.nodelist.render(context, output)
 
 
@@ -443,8 +435,7 @@ class WithTag(BlockNode, name='with'):
 
     def render(self, context, output):
         kwargs = {key: value.resolve(context) for key, value in self.kwargs.items()}
-        with context:
-            context.update(kwargs)
+        with context.push(kwargs):
             self.nodelist.render(context, output)
 
 

@@ -17,12 +17,9 @@ class IntegrationTestCase(unittest.TestCase):
         """Return full path."""
         return '%s/%s.%s' % (IntegrationTestCase.dir_tpl, file_name, extension)
 
-    def setUp(self):
-        stencil.FILTERS.update({
-            'title': string.capwords,
-        })
-
-        self.loader = stencil.TemplateLoader([IntegrationTestCase.dir_tpl])
+    @classmethod
+    def setUpClass(cls):
+        cls.loader = stencil.TemplateLoader([IntegrationTestCase.dir_tpl])
 
     def assert_output(self, base):
         try:
@@ -34,6 +31,9 @@ class IntegrationTestCase(unittest.TestCase):
 
         out = self.read_text_data(base)
         data = self.read_json_data(base)
+
+        data['title'] = string.capwords
+        data['join'] = lambda x, n: n.join(x)
 
         c = stencil.Context(data)
         result = t.render(c)
@@ -80,7 +80,6 @@ class IntegrationTestCase(unittest.TestCase):
         self.assert_output('05_filter')
 
     def test_filter_args(self):
-        stencil.FILTERS['join'] = lambda x, n: n.join(x)
         self.assert_output('05_filter_args')
 
     def test_include(self):

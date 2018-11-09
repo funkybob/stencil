@@ -5,7 +5,6 @@ import re
 import tokenize
 from collections import defaultdict, deque, namedtuple
 
-FILTERS = {}  # Map of filter names to filter functions
 TOK_COMMENT = 'comment'
 TOK_TEXT = 'text'
 TOK_VAR = 'var'
@@ -133,11 +132,8 @@ class Tokens(object):
         while self.current[0:2] == (tokenize.OP, '|'):
             self.next()
             if self.current[0] != tokenize.NAME:
-                raise SyntaxError("Invalid syntax in expression at %d.  Expected name." % (self.current[2][1],))
-            try:
-                filt = FILTERS[self.current[1]]
-            except KeyError:
-                raise SyntaxError("Invalid filter at %d: %s" % (self.current[2][1], self.current[1]))
+                raise SyntaxError(f"Invalid syntax in expression at {self.current[2][1]}.  Expected name.")
+            filt = self.current[1]
             args = []
             self.next()
             if self.current[0] == tokenize.OP and self.current[1] == ':':
@@ -170,13 +166,13 @@ class Tokens(object):
             if self.current[0] == tokenize.OP and self.current[1] == u':':
                 self.next()
                 if self.current[0] not in (tokenize.NAME, tokenize.NUMBER):
-                    raise SyntaxError("Invalid syntax in expression at %d: %r" % (
-                        self.current[2][1], self.current[-1]
-                    ))
+                    raise SyntaxError(
+                        f"Invalid syntax in expression at {self.current[2][1]}: {self.current[-1]}"
+                    )
                 var.append(self.current[1])
                 self.next()
             return var
-        raise SyntaxError('Unexpected token: %r' % (self.current,))
+        raise SyntaxError(f'Unexpected token: {self.current}')
 
     def parse_kwargs(self, end=False):
         kwargs = {}
@@ -209,7 +205,10 @@ class Expression(object):
     def resolve(self, context):
         value = resolve_lookup(context, self.value)
         for filt, args in self.filters:
-            value = filt(value, *[resolve_lookup(context, arg) for arg in args])
+            func = resolve_lookup(context, filt)
+            if not callable(filt):
+                raise TypeError(f"Filter {filt} is not callable!")
+            value = func(value, *[resolve_lookup(context, arg) for arg in args])
         return value
 
 

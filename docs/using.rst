@@ -56,5 +56,5 @@ limit of information the template can access.
 Custom filters
 --------------
 
-Filtering functions for applying to values in expressions can be defined in the
-globally shared dict ``stencil.FILTERS``.
+Filtering functions for applying to values in expressions can be included in
+the context.

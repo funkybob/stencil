@@ -50,20 +50,18 @@ Here is an example of adding an ``escape`` filter:
             return escape_js(value)
         raise ValueError('Invalid escape mode: %r' % mode)
 
-    stencil.FILTERS['escape'] = escape
-
 And we use it in our template:
 
 .. code-block:: html
 
    <input type="text" value="{{ value|escape }}">
 
-Now we can use it:
+Now we can use it by passing it in the context:
 
 .. code-block:: python
 
    >>> from stencil import TemplateLoader, Context
-   >>> ctx = Context({'value': '<script>alert("BOO");</script>'})
+   >>> ctx = Context({'value': '<script>alert("BOO");</script>', 'escape': escape})
    >>> tmp.render(ctx)
    u'<input type="text" value="&lt;script&gt;alert(&quot;BOO&quot;);&lt;/script&gt;">'
 

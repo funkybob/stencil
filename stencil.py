@@ -177,12 +177,15 @@ class Tokens(object):
     def parse_kwargs(self, end=False):
         kwargs = {}
         while self.current[0] != tokenize.ENDMARKER:
+            if self.current[0] == tokenize.NEWLINE:
+                self.next()
+                continue
             if self.current[0] != tokenize.NAME:
-                raise SyntaxError('Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1]))
+                raise SyntaxError(f'Syntax error parsing kwargs ({self.current[2][0]}): {self.current[-1]}')
             key = self.current[1]
             self.next()
             if not (self.current[0] == tokenize.OP and self.current[1] == '='):
-                raise SyntaxError('Syntax error in Include (%d): %r' % (self.current[2][0], self.current[-1]))
+                raise SyntaxError(f'Syntax error parsing kwargs ({self.current[2][0]}): {self.current[-1]}')
             self.next()
             kwargs[key] = self.parse_filter_expression()
         if end:
@@ -190,8 +193,10 @@ class Tokens(object):
         return kwargs
 
     def assert_end(self):
+        while self.current[0] == tokenize.NEWLINE:
+            self.next()  # Python now adds a NEWLINE even if we didn't pass one.
         if self.current[0] != tokenize.ENDMARKER:
-            raise SyntaxError("Error parsing arguments (%d): %r" % (self.current[2][0], self.current[-1]))
+            raise SyntaxError(f"Error parsing arguments ({self.current[2][0]}): {self.current[-1]}")
 
     @staticmethod
     def parse_expression(source):
@@ -205,9 +210,12 @@ class Expression(object):
     def resolve(self, context):
         value = resolve_lookup(context, self.value)
         for filt, args in self.filters:
-            func = resolve_lookup(context, filt)
-            if not callable(filt):
-                raise TypeError(f"Filter {filt} is not callable!")
+            try:
+                func = context[filt]
+            except KeyError:
+                raise ValueError(f'Filter {filt} is not defined!')
+            if not callable(func):
+                raise TypeError(f"Filter '{filt}' is not callable!")
             value = func(value, *[resolve_lookup(context, arg) for arg in args])
         return value
 
@@ -457,7 +465,7 @@ class CaseTag(BlockNode, name='case'):
         else_found = False
         for node in nodelist:
             if node.name not in {'when', 'else'}:
-                raise SyntaxError("Only 'when' and 'else' allowed as children of case. Found: %r" % node)
+                raise SyntaxError(f"Only 'when' and 'else' allowed as children of case. Found: {node}")
             if node.name == 'else':
                 if else_found:
                     raise SyntaxError('Case tag can only have one else child')

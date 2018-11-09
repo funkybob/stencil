@@ -72,7 +72,7 @@ class Nodelist(list):
                 yield from node.nodes_by_type(node_type)
 
 
-class Template(object):
+class Template:
     def __init__(self, src, loader=None):
         self.tokens, self.loader = tokenise(src), loader
         self.nodelist = self.parse_nodelist([])
@@ -110,7 +110,7 @@ class Template(object):
         return output.getvalue()
 
 
-class Tokens(object):
+class Tokens:
     def __init__(self, source):
         self.tokens = tokenize.generate_tokens(StringIO(source).readline)
         self.next()
@@ -195,7 +195,7 @@ class Tokens(object):
         return Tokens(source).parse_filter_expression(end=True)
 
 
-class Expression(object):
+class Expression:
     def __init__(self, value, filters):
         self.value, self.filters = value, filters
 
@@ -238,7 +238,7 @@ def resolve_lookup(context, parts, default=''):
     return obj
 
 
-class Node(object):
+class Node:
     name = None
 
     def __init__(self, content):

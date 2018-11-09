@@ -38,7 +38,6 @@ class ContextTestCase(unittest.TestCase):
         ctx = stencil.Context({'a': 1})
         self.assertEqual(ctx['a'], 1)
         self.assertIsNone(ctx['None'])
-        with ctx:
-            ctx.update({'a': 2})
+        with ctx.push({'a': 2}):
             self.assertEqual(ctx['a'], 2)
         self.assertEqual(ctx['a'], 1)

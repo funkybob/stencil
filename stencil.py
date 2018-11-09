@@ -1,8 +1,8 @@
 import importlib
-import io
-import os
 import re
 import tokenize
+from io import StringIO
+from pathlib import Path
 from collections import defaultdict, deque, namedtuple
 
 TOK_COMMENT = 'comment'
@@ -29,14 +29,13 @@ def tokenise(template):
 
 class TemplateLoader(dict):
     def __init__(self, paths):
-        self.paths = [os.path.abspath(path) for path in paths]
+        self.paths = [Path(path).resolve() for path in paths]
 
-    def load(self, name):
+    def load(self, name, encoding='utf8'):
         for path in self.paths:
-            full_path = os.path.join(path, name)
-            if os.path.isfile(full_path):
-                with io.open(full_path, 'r') as fin:
-                    return Template(fin.read(), loader=self)
+            full_path = path / name
+            if full_path.is_file():
+                return Template(full_path.read_text(encoding), loader=self)
         raise LookupError(name)
 
     def __missing__(self, key):
@@ -113,14 +112,14 @@ class Template(object):
         if not isinstance(context, Context):
             context = Context(context)
         if output is None:
-            output = io.StringIO()
+            output = StringIO()
         self.nodelist.render(context, output)
         return output.getvalue()
 
 
 class Tokens(object):
     def __init__(self, source):
-        self.tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+        self.tokens = tokenize.generate_tokens(StringIO(source).readline)
         self.next()
 
     def next(self):

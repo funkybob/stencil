@@ -84,7 +84,7 @@ class Template:
             elif token.type == TOK_VAR:
                 yield VarTag(token.content)
             elif token.type == TOK_BLOCK:
-                m = re.match('\w+', token.content)
+                m = re.match(r'\w+', token.content)
                 if not m:
                     raise SyntaxError(token)
                 yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
@@ -403,7 +403,7 @@ class BlockTag(BlockNode, name='block'):
 
     @classmethod
     def parse(cls, content, parser):
-        name = re.match('\w+', content).group(0)
+        name = re.match(r'\w+', content).group(0)
         nodelist = parser.parse_nodelist({'endblock'})
         return cls(name, nodelist)
 

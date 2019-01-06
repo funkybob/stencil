@@ -265,11 +265,10 @@ class BlockNode(Node):
     __tags__ = {}
     child_nodelists = ('nodelist',)
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, *, name):
         super().__init_subclass__()
-        if 'name' in kwargs:
-            cls.name = kwargs['name']
-            BlockNode.__tags__[kwargs.pop('name')] = cls
+        cls.name = name
+        BlockNode.__tags__[name] = cls
         return cls
 
     @classmethod
@@ -476,7 +475,6 @@ class CaseTag(BlockNode, name='case'):
 
 
 class WhenTag(BlockNode, name='when'):
-    name = 'when'
 
     def __init__(self, term, nodelist):
         self.term, self.nodelist = term, nodelist

@@ -22,7 +22,7 @@ def tokenise(template):
             yield Token(TOK_TEXT, template[upto:start])
         upto = end
         mode = m.lastgroup
-        yield Token(mode, m.group(mode).strip())
+        yield Token(mode, m[mode].strip())
     if upto < len(template):
         yield Token(TOK_TEXT, template[upto:])
 
@@ -105,9 +105,12 @@ class Template:
         if not isinstance(context, Context):
             context = Context(context)
         if output is None:
-            output = StringIO()
-        self.nodelist.render(context, output)
-        return output.getvalue()
+            dest = StringIO()
+        else:
+            dest = output
+        self.nodelist.render(context, dest)
+        if output is None:
+            return dest.getvalue()
 
 
 class Tokens:

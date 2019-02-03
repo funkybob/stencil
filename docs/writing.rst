@@ -131,7 +131,8 @@ And, like the ``for`` tag, it supports an ``else`` block:
    Failure!
    {% endif %}
 
-"Truthiness" is based on the Pythocept.  Here are some things that are "truthy":
+"Truthiness" is based on the Python concept. Here are some things that are
+"truthy":
 
 - True
 - non-empty strings

@@ -169,7 +169,7 @@ class Tokens:
             return var
         raise SyntaxError(f'Unexpected token: {self.current}')
 
-    def parse_kwargs(self, end=False):
+    def parse_kwargs(self, end=True):
         kwargs = {}
         while self.current[0] != tokenize.ENDMARKER:
             if self.current[0] == tokenize.NEWLINE:
@@ -356,7 +356,7 @@ class IncludeTag(BlockNode, name='include'):
             raise RuntimeError("Can't use {% include %} without a bound Loader")
         tokens = Tokens(content)
         template_name = tokens.parse_filter_expression()
-        kwargs = tokens.parse_kwargs(end=True)
+        kwargs = tokens.parse_kwargs()
         return cls(template_name, kwargs, parser.loader)
 
     def render(self, context, output):
@@ -431,7 +431,7 @@ class WithTag(BlockNode, name='with'):
 
     @classmethod
     def parse(cls, content, parser):
-        kwargs = Tokens(content).parse_kwargs(end=True)
+        kwargs = Tokens(content).parse_kwargs()
         nodelist = parser.parse_nodelist({'endwith'})
         return cls(kwargs, nodelist)
 

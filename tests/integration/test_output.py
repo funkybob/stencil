@@ -67,6 +67,9 @@ class IntegrationTestCase(unittest.TestCase):
     def test_simple(self):
         self.assert_output('01_simple')
 
+    def test_deep(self):
+        self.assert_output('01_deep')
+
     def test_for(self):
         self.assert_output('02_for')
 

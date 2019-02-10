@@ -127,7 +127,7 @@ class Tokens:
         while self.current[0:2] == (tokenize.OP, '|'):
             self.next()
             if self.current[0] != tokenize.NAME:
-                raise SyntaxError(f"Invalid syntax in expression at {self.current[2][1]}.  Expected name.")
+                raise SyntaxError(f"Invalid syntax in expression at {self.current[2][1]}. Expected name.")
             filt = self.current[1]
             args = []
             self.next()
@@ -158,7 +158,7 @@ class Tokens:
         elif self.current[0] == tokenize.NAME:
             var = [self.current[1]]
             self.next()
-            if self.current[0] == tokenize.OP and self.current[1] == u':':
+            while self.current[0] == tokenize.OP and self.current[1] == u':':
                 self.next()
                 if self.current[0] not in (tokenize.NAME, tokenize.NUMBER):
                     raise SyntaxError(

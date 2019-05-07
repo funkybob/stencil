@@ -242,7 +242,7 @@ write now the ``blocks`` we want to override:
 
 .. code-block:: html
 
-    {% extends base.html %}
+    {% extends 'base.html' %}
 
     {% block title %}My Title!{% endblock %}
 

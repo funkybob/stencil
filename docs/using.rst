@@ -7,7 +7,7 @@ To use stencil templates there is very little to do.
 From Strings
 ============
 
-To build a tempate from a string, just create a ``stencil.Template`` instance:
+To build a template from a string, just create a ``stencil.Template`` instance:
 
 .. code-block:: python
 

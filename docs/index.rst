@@ -25,4 +25,5 @@ K-T to Py2 just wasn't warranted.
 
 So I figured, why not see how small I can make a functional template language?
 
-Apparently, "under 400 lines of code" is the answer...
+Apparently, "under 400 lines of code" is the answer... (it's grown a little
+since then :)

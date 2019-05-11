@@ -17,40 +17,19 @@ Expressions
 
 At several points in the syntax, an Expression can be used.
 
-They start with a value, optionally followed by a series of filters.
-
-A value can be:
+An expression can be:
 
 - an integer
 - a float
 - a string
-- a lookup
+- an expression
 
-A lookup will try to delve into the Context.  For example the expression
-``name`` will look for Context['name'].
+All expressions start by looking up their first element in the ``Context``. For
+example the expression ``name`` will look for Context['name'].
 
-However, lookups can delve deeper.  They will attempt dict lookups, attribute
-lookup, and list indexing (in that order).  Also, if the resulting value is
-callable, it will be called.
-
-So, to get the ``name`` attribute of your ``user`` object, and call its
-``title`` method, the expression would be ``name:user:title``.
-
-Filters allow you to pass the value (and possibly more arguments) to helper
-functions.  For example, you might have a dollar format function:
-
-.. code-block:: python
-
-    def dollar_format(value, currency_symbol='$'):
-        return "%s%0.2f" % (currency_symbol, float(value))
-
-Then by passing this into your `Context`, you can in your templates use the
-expression ``product:price|dollar_format``, or even override the currency
-symbol using ``product:price|dollar_format:'¥'``.
-
-Filters can be chained, one after another.
-
-There are currently no default filters provided with Stencil.
+After that, they behave just like Python. You can do a dict or list lookup
+using [], or call a function using (). Note, however, that function invocations
+are limited to only positional arguments.
 
 Comments
 ========
@@ -70,7 +49,8 @@ Var tags are used to display the values of variables.  They look like this:
 Block Tags
 ==========
 
-Block tags perform some action, may render some output, and may "contain" other tags.
+Block tags perform some action, may render some output, and may "contain" other
+tags.
 
 .. code-block:: html
 
@@ -156,8 +136,8 @@ context.
 
     {% include expr %}
 
-Additionally, you can pass extra expressions to be added to the
-context whilst the other template is being rendered.
+Additionally, you can pass extra expressions to be added to the context whilst
+the other template is being rendered.
 
 .. code-block:: html
 
@@ -262,8 +242,8 @@ expressions.  This can help avoid repeated work.
 
 .. code-block:: html
 
-   {% with url=page|make_url %}
-   <a href="{{ url }}" class="link {% if url|is_current_url %}current{% endif %}">{{ page:title }}</a>
+   {% with url=make_url(page) %}
+   <a href="{{ url }}" class="link {% if is_current_url(url) %}current{% endif %}">{{ page.title }}</a>
    {% endwith %}
 
 

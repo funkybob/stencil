@@ -1,3 +1,2 @@
 coverage
-mock
-pep8
+flake8

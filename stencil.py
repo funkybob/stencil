@@ -1,5 +1,6 @@
 import importlib
 import re
+import token
 import tokenize
 from io import StringIO
 from pathlib import Path
@@ -35,7 +36,7 @@ class TemplateLoader(dict):
         for path in self.paths:
             full_path = path / name
             if full_path.is_file():
-                return Template(full_path.read_text(encoding), loader=self)
+                return Template(full_path.read_text(encoding), loader=self, name=name)
         raise LookupError(name)
 
     def __missing__(self, key):
@@ -73,21 +74,22 @@ class Nodelist(list):
 
 
 class Template:
-    def __init__(self, src, loader=None):
+    def __init__(self, src, loader=None, name=None):
         self.tokens, self.loader = tokenise(src), loader
         self.nodelist = self.parse_nodelist([])
+        self.name = name  # So we can report where the fault was
 
     def parse(self):
-        for token in self.tokens:
-            if token.type == TOK_TEXT:
-                yield TextTag(token.content)
-            elif token.type == TOK_VAR:
-                yield VarTag(token.content)
-            elif token.type == TOK_BLOCK:
-                m = re.match(r'\w+', token.content)
+        for tok in self.tokens:
+            if tok.type == TOK_TEXT:
+                yield TextTag(tok.content)
+            elif tok.type == TOK_VAR:
+                yield VarTag(tok.content)
+            elif tok.type == TOK_BLOCK:
+                m = re.match(r'\w+', tok.content)
                 if not m:
-                    raise SyntaxError(token)
-                yield BlockNode.__tags__[m.group(0)].parse(token.content[m.end(0):].strip(), self)
+                    raise SyntaxError(tok)
+                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -113,132 +115,161 @@ class Template:
             return dest.getvalue()
 
 
-class Tokens:
-    def __init__(self, source):
-        self.tokens = tokenize.generate_tokens(StringIO(source).readline)
-        self.next()
+class AstLiteral:
+    def __init__(self, arg):
+        self.arg = arg
 
-    def next(self):
-        self.current = next(self.tokens)
+    def resolve(self, context):
+        return self.arg
 
-    def parse_filter_expression(self, end=False):
-        value = self.parse_argument()
-        filters = []
-        while self.current[0:2] == (tokenize.OP, '|'):
-            self.next()
-            if self.current[0] != tokenize.NAME:
-                raise SyntaxError(f"Invalid syntax in expression at {self.current[2][1]}. Expected name.")
-            filt = self.current[1]
-            args = []
-            self.next()
-            if self.current[0] == tokenize.OP and self.current[1] == ':':
-                self.next()
-                term = self.parse_argument()
-                args.append(term)
-                while self.current[0] == tokenize.OP and self.current[1] == ',':
-                    args.append(self.parse_argument())
-            filters.append((filt, args))
-        if end:
-            self.assert_end()
-        return Expression(value, filters)
 
-    def parse_argument(self):
-        ''' Parse either a string literal, int/float literal, or lookup sequence '''
-        if self.current[0] == tokenize.STRING:
-            value = self.current[1][1:-1]
-            self.next()
-            return value
-        elif self.current[0] == tokenize.NUMBER:
-            try:
-                value = int(self.current[1])
-            except ValueError:
-                value = float(self.current[1])
-            self.next()
-            return value
-        elif self.current[0] == tokenize.NAME:
-            var = [self.current[1]]
-            self.next()
-            while self.current[0] == tokenize.OP and self.current[1] == u':':
-                self.next()
-                if self.current[0] not in (tokenize.NAME, tokenize.NUMBER):
-                    raise SyntaxError(
-                        f"Invalid syntax in expression at {self.current[2][1]}: {self.current[-1]}"
-                    )
-                var.append(self.current[1])
-                self.next()
-            return var
-        raise SyntaxError(f'Unexpected token: {self.current}')
+class AstContext:
+    def __init__(self, arg):
+        self.arg = arg
 
-    def parse_kwargs(self, end=True):
-        kwargs = {}
-        while self.current[0] != tokenize.ENDMARKER:
-            if self.current[0] == tokenize.NEWLINE:
-                self.next()
-                continue
-            if self.current[0] != tokenize.NAME:
-                raise SyntaxError(f'Syntax error parsing kwargs ({self.current[2][0]}): {self.current[-1]}')
-            key = self.current[1]
-            self.next()
-            if not (self.current[0] == tokenize.OP and self.current[1] == '='):
-                raise SyntaxError(f'Syntax error parsing kwargs ({self.current[2][0]}): {self.current[-1]}')
-            self.next()
-            kwargs[key] = self.parse_filter_expression()
-        if end:
-            self.assert_end()
-        return kwargs
+    def resolve(self, context):
+        return context.get(self.arg, '')
 
-    def assert_end(self):
-        while self.current[0] == tokenize.NEWLINE:
-            self.next()  # Python now adds a NEWLINE even if we didn't pass one.
-        if self.current[0] != tokenize.ENDMARKER:
-            raise SyntaxError(f"Error parsing arguments ({self.current[2][0]}): {self.current[-1]}")
 
-    @staticmethod
-    def parse_expression(source):
-        return Tokens(source).parse_filter_expression(end=True)
+class AstLookup:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def resolve(self, context):
+        left = self.left.resolve(context)
+        right = self.right.resolve(context)
+
+        return left[right]
+
+
+class AstAttr:
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def resolve(self, context):
+        left = self.left.resolve(context)
+
+        return getattr(left, self.right)
+
+
+class AstCall:
+    def __init__(self, func):
+        self.func = func
+        self.args = []
+
+    def add_arg(self, arg):
+        self.args.append(arg)
+
+    def resolve(self, context):
+        func = self.func.resolve(context)
+        args = [arg.resolve(context) for arg in self.args]
+
+        return func(*args)
 
 
 class Expression:
-    def __init__(self, value, filters):
-        self.value, self.filters = value, filters
+    def __init__(self, source):
+        self.tokens = tokenize.generate_tokens(StringIO(source).readline)
+        self.next()  # prime the first token
 
-    def resolve(self, context):
-        value = resolve_lookup(context, self.value)
-        for filt, args in self.filters:
+    def next(self):
+        self.current = next(self.tokens)
+        return self.current
+
+    @staticmethod
+    def parse(s):
+        p = Expression(s)
+        result = p._parse()
+
+        if p.current.exact_type not in (token.NEWLINE, token.ENDMARKER):
+            raise SyntaxError(f'Parse ended unexpectedly: {p.current}')
+
+        return result
+
+    def parse_kwargs(self):
+        kwargs = {}
+
+        tok = self.current
+
+        while tok.exact_type != token.ENDMARKER:
+            if tok == token.NEWLINE:
+                tok = self.next()
+                continue
+
+            if tok.exact_type != token.NAME:
+                raise SyntaxError(f'Expected name, found {tok}')
+            name = tok.string
+            tok = self.next()
+
+            if tok.exact_type != token.EQUAL:
+                raise SyntaxError(f'Expected =, found {tok}')
+            tok = self.next()
+
+            kwargs[name] = self._parse()
+
+            tok = self.next()
+
+        return kwargs
+
+    def _parse(self):
+        tok = self.current
+
+        if tok.exact_type in (token.ENDMARKER, ):
+            return  # TODO
+
+        if tok.exact_type == token.STRING:
+            self.next()
+            return AstLiteral(tok.string[1:-1])
+
+        if tok.exact_type == token.NUMBER:
+            self.next()
             try:
-                func = context[filt]
-            except KeyError:
-                raise ValueError(f'Filter {filt} is not defined!')
-            if not callable(func):
-                raise TypeError(f"Filter '{filt}' is not callable!")
-            value = func(value, *[resolve_lookup(context, arg) for arg in args])
-        return value
+                value = int(tok.string)
+            except ValueError:
+                value = float(tok.string)
+            return AstLiteral(value)
 
+        if tok.exact_type == token.NAME:
+            state = AstContext(tok.string)
 
-def resolve_lookup(context, parts, default=''):
-    if isinstance(parts, (int, float, str)):
-        return parts
-    parts = iter(parts)
-    try:
-        obj = context[next(parts)]
-    except KeyError:
-        return default
-    if callable(obj):
-        obj = obj()
-    for step in parts:
-        try:
-            obj = obj[step]
-        except (TypeError, AttributeError, KeyError):
-            try:
-                obj = getattr(obj, step)
-            except (TypeError, AttributeError):
-                try:
-                    obj = obj[int(step)]
-                except (IndexError, ValueError, KeyError, TypeError):
-                    return default
-        if callable(obj):
-            obj = obj()
-    return obj
+            while True:
+                tok = self.next()
+
+                if tok.exact_type == token.DOT:
+                    tok = self.next()
+                    if tok.exact_type != token.NAME:
+                        raise SyntaxError(f"Invalid attr lookup: {tok}")
+                    state = AstAttr(state, tok.string)
+
+                elif tok.exact_type == token.LSQB:
+                    self.next()
+                    right = self._parse()
+                    state = AstLookup(state, right)
+                    if self.current.exact_type != token.RSQB:
+                        raise SyntaxError(f"Expected ] but found {self.current}")
+
+                elif tok.exact_type == token.LPAR:
+                    state = AstCall(state)
+                    self.next()
+                    while self.current.exact_type != token.RPAR:
+                        arg = self._parse()
+                        state.add_arg(arg)
+                        if self.current.exact_type != token.COMMA:
+                            break
+
+                    if self.current.exact_type != token.RPAR:
+                        raise SyntaxError(f"Expected ( but found {self.current}")
+
+                    self.next()
+
+                else:
+                    break
+
+            return state
+
+        raise SyntaxError(f'Unexpected token: {tok}')
 
 
 class Node:
@@ -258,7 +289,7 @@ class TextTag(Node):
 
 class VarTag(Node):
     def __init__(self, content):
-        self.expr = Tokens.parse_expression(content)
+        self.expr = Expression.parse(content)
 
     def render(self, context, output):
         output.write(str(self.expr.resolve(context)))
@@ -296,7 +327,7 @@ class ForTag(BlockNode, name='for'):
         argname, iterable = content.split(' in ', 1)
         nodelist = parser.parse_nodelist({'endfor', 'else'})
         elselist = parser.parse_nodelist({'endfor'}) if nodelist.endnode.name == 'else' else None
-        return cls(argname.strip(), Tokens.parse_expression(iterable.strip()), nodelist, elselist)
+        return cls(argname.strip(), Expression.parse(iterable.strip()), nodelist, elselist)
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
@@ -322,7 +353,7 @@ class IfTag(BlockNode, name='if'):
 
     def __init__(self, condition, nodelist, elselist):
         condition, inv = re.subn(r'^not\s+', '', condition, count=1)
-        self.inv, self.condition = bool(inv), Tokens.parse_expression(condition)
+        self.inv, self.condition = bool(inv), Expression.parse(condition)
         self.nodelist, self.elselist = nodelist, elselist
 
     @classmethod
@@ -354,8 +385,8 @@ class IncludeTag(BlockNode, name='include'):
     def parse(cls, content, parser):
         if parser.loader is None:
             raise RuntimeError("Can't use {% include %} without a bound Loader")
-        tokens = Tokens(content)
-        template_name = tokens.parse_filter_expression()
+        tokens = Expression(content)
+        template_name = tokens._parse()
         kwargs = tokens.parse_kwargs()
         return cls(template_name, kwargs, parser.loader)
 
@@ -382,21 +413,25 @@ class ExtendsTag(BlockNode, name='extends'):
 
     @classmethod
     def parse(cls, content, parser):
-        parent = Tokens.parse_expression(content)
+        parent = Expression.parse(content)
         nodelist = parser.parse_nodelist([])
         return cls(parent, parser.loader, nodelist)
 
     def render(self, context, output):
         parent = self.loader[self.parent.resolve(context)]
         block_context = getattr(context, 'block_context', None)
+        new = False
         if block_context is None:
             block_context = context.block_context = defaultdict(deque)
+            new = True
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].append(block)
         if parent.nodelist[0].name != 'extends':
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].append(block)
         parent.render(context, output)
+        if new:
+            del context.block_context
 
 
 class BlockTag(BlockNode, name='block'):
@@ -431,7 +466,7 @@ class WithTag(BlockNode, name='with'):
 
     @classmethod
     def parse(cls, content, parser):
-        kwargs = Tokens(content).parse_kwargs()
+        kwargs = Expression(content).parse_kwargs()
         nodelist = parser.parse_nodelist({'endwith'})
         return cls(kwargs, nodelist)
 
@@ -452,7 +487,7 @@ class CaseTag(BlockNode, name='case'):
 
     @classmethod
     def parse(cls, content, parser):
-        term = Tokens.parse_expression(content)
+        term = Expression.parse(content)
         nodelist = parser.parse_nodelist(['endcase'])
         else_found = False
         for node in nodelist:
@@ -484,7 +519,7 @@ class WhenTag(BlockNode, name='when'):
 
     @classmethod
     def parse(cls, content, parser):
-        term = Tokens.parse_expression(content)
+        term = Expression.parse(content)
         nodelist = parser.parse_nodelist()
         return cls(term, nodelist)
 

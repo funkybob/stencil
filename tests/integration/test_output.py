@@ -32,9 +32,6 @@ class IntegrationTestCase(unittest.TestCase):
         out = self.read_text_data(base)
         data = self.read_json_data(base)
 
-        data['title'] = string.capwords
-        data['join'] = lambda x, n: n.join(x)
-
         c = stencil.Context(data)
         result = t.render(c)
 
@@ -78,12 +75,6 @@ class IntegrationTestCase(unittest.TestCase):
 
     def test_ifnot(self):
         self.assert_output('04_ifnot')
-
-    def test_filter(self):
-        self.assert_output('05_filter')
-
-    def test_filter_args(self):
-        self.assert_output('05_filter_args')
 
     def test_include(self):
         self.assert_output('06_include')

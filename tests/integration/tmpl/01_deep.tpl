@@ -1,1 +1,1 @@
-Welcome, {{ user:name:title }}!
+Welcome, {{ user['name'].title() }}!

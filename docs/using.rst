@@ -50,11 +50,3 @@ Context
 
 When rendering a template, you need to pass it a ``Context`` - this is the
 limit of information the template can access.
-
-.. _custom_filters:
-
-Custom filters
---------------
-
-Filtering functions for applying to values in expressions can be included in
-the context.

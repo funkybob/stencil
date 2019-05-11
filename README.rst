@@ -5,7 +5,7 @@ A minimalist template engine for Python3
 
 The goal of Stencil is to provide just enough of a template engine in a single file.
 
-Currently weighs in at just under 500 LoC
+Currently weighs in at 531 LoC (393 according to sloccount).
 
 Quick Start
 -----------
@@ -20,7 +20,7 @@ Quick Start
 
    .. code-block:: html
 
-      Good morning, {{ name|escape }}!
+      Good morning, {{ escape(name) }}!
 
 3. Write a script to use it
 
@@ -41,6 +41,9 @@ Quick Start
 
 Python support
 --------------
+
+As of stencil v4, there is a new expression syntax that is not backward
+compatible.
 
 As of stencil v2.1, only Python 3.6+ is supported.
 As of stencil v2, only Python 3.4+ is supported.

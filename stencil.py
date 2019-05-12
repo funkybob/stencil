@@ -216,7 +216,7 @@ class Expression:
     def _parse(self):
         tok = self.current
 
-        if tok.exact_type in (token.ENDMARKER, ):
+        if tok.exact_type in (token.ENDMARKER, token.COMMA):
             return  # TODO
 
         if tok.exact_type == token.STRING:
@@ -258,6 +258,7 @@ class Expression:
                         state.add_arg(arg)
                         if self.current.exact_type != token.COMMA:
                             break
+                        self.next()
 
                     if self.current.exact_type != token.RPAR:
                         raise SyntaxError(f"Expected ( but found {self.current}")

@@ -76,10 +76,11 @@ class Nodelist(list):
 class Template:
     def __init__(self, src, loader=None, name=None):
         self.tokens, self.loader = tokenise(src), loader
-        self.nodelist = self.parse_nodelist([])
         self.name = name  # So we can report where the fault was
+        self.nodelist = self.parse_nodelist([])
 
     def parse(self):
+      try:
         for tok in self.tokens:
             if tok.type == TOK_TEXT:
                 yield TextTag(tok.content)
@@ -90,6 +91,8 @@ class Template:
                 if not m:
                     raise SyntaxError(tok)
                 yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
+      except Exception as ex:
+        raise RuntimeError(f"Error parsing template {self.name}") from ex
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()

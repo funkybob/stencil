@@ -197,7 +197,7 @@ class Expression:
         tok = self.current
 
         while tok.exact_type != token.ENDMARKER:
-            if tok == token.NEWLINE:
+            if tok.exact_type == token.NEWLINE:
                 tok = self.next()
                 continue
 

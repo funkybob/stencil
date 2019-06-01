@@ -6,13 +6,13 @@ from io import StringIO
 from pathlib import Path
 from collections import defaultdict, deque, namedtuple, ChainMap
 
-TOK_COMMENT = 'comment'
-TOK_TEXT = 'text'
-TOK_VAR = 'var'
-TOK_BLOCK = 'block'
+TOK_COMMENT = "comment"
+TOK_TEXT = "text"
+TOK_VAR = "var"
+TOK_BLOCK = "block"
 
-tag_re = re.compile(r'{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}', re.DOTALL)
-Token = namedtuple('Token', 'type content')
+tag_re = re.compile(r"{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}", re.DOTALL)
+Token = namedtuple("Token", "type content")
 
 
 def tokenise(template):
@@ -32,7 +32,7 @@ class TemplateLoader(dict):
     def __init__(self, paths):
         self.paths = [Path(path).resolve() for path in paths]
 
-    def load(self, name, encoding='utf8'):
+    def load(self, name, encoding="utf8"):
         for path in self.paths:
             full_path = path / name
             if full_path.is_file():
@@ -47,7 +47,7 @@ class TemplateLoader(dict):
 class Context(ChainMap):
     def __init__(self, *args):
         super().__init__(*args)
-        self.maps.append({'True': True, 'False': False, 'None': None})
+        self.maps.append({"True": True, "False": False, "None": None})
 
     def push(self, data=None):
         self.maps.insert(0, data or {})
@@ -86,10 +86,10 @@ class Template:
             elif tok.type == TOK_VAR:
                 yield VarTag(tok.content)
             elif tok.type == TOK_BLOCK:
-                m = re.match(r'\w+', tok.content)
+                m = re.match(r"\w+", tok.content)
                 if not m:
                     raise SyntaxError(tok)
-                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
+                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0) :].strip(), self)
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -128,7 +128,7 @@ class AstContext:
         self.arg = arg
 
     def resolve(self, context):
-        return context.get(self.arg, '')
+        return context.get(self.arg, "")
 
 
 class AstLookup:
@@ -184,7 +184,7 @@ class Expression:
         result = p._parse()
 
         if p.current.exact_type not in (token.NEWLINE, token.ENDMARKER):
-            raise SyntaxError(f'Parse ended unexpectedly: {p.current}')
+            raise SyntaxError(f"Parse ended unexpectedly: {p.current}")
 
         return result
 
@@ -199,12 +199,12 @@ class Expression:
                 continue
 
             if tok.exact_type != token.NAME:
-                raise SyntaxError(f'Expected name, found {tok}')
+                raise SyntaxError(f"Expected name, found {tok}")
             name = tok.string
             tok = self.next()
 
             if tok.exact_type != token.EQUAL:
-                raise SyntaxError(f'Expected =, found {tok}')
+                raise SyntaxError(f"Expected =, found {tok}")
             tok = self.next()
 
             kwargs[name] = self._parse()
@@ -270,7 +270,7 @@ class Expression:
 
             return state
 
-        raise SyntaxError(f'Unexpected token: {tok}')
+        raise SyntaxError(f"Unexpected token: {tok}")
 
 
 class Node:
@@ -298,7 +298,7 @@ class VarTag(Node):
 
 class BlockNode(Node):
     __tags__ = {}
-    child_nodelists = ('nodelist',)
+    child_nodelists = ("nodelist",)
 
     def __init_subclass__(cls, *, name):
         super().__init_subclass__()
@@ -317,17 +317,17 @@ class BlockNode(Node):
                 yield from nodelist.nodes_by_type(node_type)
 
 
-class ForTag(BlockNode, name='for'):
-    child_nodelists = ('nodelist', 'elselist')
+class ForTag(BlockNode, name="for"):
+    child_nodelists = ("nodelist", "elselist")
 
     def __init__(self, argname, iterable, nodelist, elselist):
         self.argname, self.iterable, self.nodelist, self.elselist = argname, iterable, nodelist, elselist
 
     @classmethod
     def parse(cls, content, parser):
-        argname, iterable = content.split(' in ', 1)
-        nodelist = parser.parse_nodelist({'endfor', 'else'})
-        elselist = parser.parse_nodelist({'endfor'}) if nodelist.endnode.name == 'else' else None
+        argname, iterable = content.split(" in ", 1)
+        nodelist = parser.parse_nodelist({"endfor", "else"})
+        elselist = parser.parse_nodelist({"endfor"}) if nodelist.endnode.name == "else" else None
         return cls(argname.strip(), Expression.parse(iterable.strip()), nodelist, elselist)
 
     def render(self, context, output):
@@ -337,30 +337,30 @@ class ForTag(BlockNode, name='for'):
         else:
             with context.push():
                 for idx, item in enumerate(iterable):
-                    context.update({'loopcounter': idx, self.argname: item})
+                    context.update({"loopcounter": idx, self.argname: item})
                     self.nodelist.render(context, output)
 
 
-class ElseTag(BlockNode, name='else'):
+class ElseTag(BlockNode, name="else"):
     pass
 
 
-class EndforTag(BlockNode, name='endfor'):
+class EndforTag(BlockNode, name="endfor"):
     pass
 
 
-class IfTag(BlockNode, name='if'):
-    child_nodelists = ('nodelist', 'elselist')
+class IfTag(BlockNode, name="if"):
+    child_nodelists = ("nodelist", "elselist")
 
     def __init__(self, condition, nodelist, elselist):
-        condition, inv = re.subn(r'^not\s+', '', condition, count=1)
+        condition, inv = re.subn(r"^not\s+", "", condition, count=1)
         self.inv, self.condition = bool(inv), Expression.parse(condition)
         self.nodelist, self.elselist = nodelist, elselist
 
     @classmethod
     def parse(cls, content, parser):
-        nodelist = parser.parse_nodelist({'endif', 'else'})
-        elselist = parser.parse_nodelist({'endif'}) if nodelist.endnode.name == 'else' else None
+        nodelist = parser.parse_nodelist({"endif", "else"})
+        elselist = parser.parse_nodelist({"endif"}) if nodelist.endnode.name == "else" else None
         return cls(content, nodelist, elselist)
 
     def render(self, context, output):
@@ -373,12 +373,11 @@ class IfTag(BlockNode, name='if'):
         return self.inv ^ bool(self.condition.resolve(context))
 
 
-class EndifTag(BlockNode, name='endif'):
+class EndifTag(BlockNode, name="endif"):
     pass
 
 
-class IncludeTag(BlockNode, name='include'):
-
+class IncludeTag(BlockNode, name="include"):
     def __init__(self, template_name, kwargs, loader):
         self.template_name, self.kwargs, self.loader = template_name, kwargs, loader
 
@@ -399,16 +398,14 @@ class IncludeTag(BlockNode, name='include'):
             tmpl.render(context, output)
 
 
-class LoadTag(BlockNode, name='load'):
-
+class LoadTag(BlockNode, name="load"):
     @classmethod
     def parse(cls, content, parser):
         importlib.import_module(content)
         return cls(None)
 
 
-class ExtendsTag(BlockNode, name='extends'):
-
+class ExtendsTag(BlockNode, name="extends"):
     def __init__(self, parent, loader, nodelist):
         self.parent, self.loader, self.nodelist = parent, loader, nodelist
 
@@ -420,26 +417,25 @@ class ExtendsTag(BlockNode, name='extends'):
 
     def render(self, context, output):
         parent = self.loader[self.parent.resolve(context)]
-        block_context = getattr(context, 'block_context', None)
+        block_context = getattr(context, "block_context", None)
         if block_context is None:
             block_context = context.block_context = defaultdict(deque)
         for block in self.nodelist.nodes_by_type(BlockTag):
             block_context[block.block_name].append(block)
-        if parent.nodelist[0].name != 'extends':
+        if parent.nodelist[0].name != "extends":
             for block in parent.nodelist.nodes_by_type(BlockTag):
                 block_context[block.block_name].append(block)
         parent.render(context, output)
 
 
-class BlockTag(BlockNode, name='block'):
-
+class BlockTag(BlockNode, name="block"):
     def __init__(self, name, nodelist):
         self.block_name, self.nodelist = name, nodelist
 
     @classmethod
     def parse(cls, content, parser):
-        name = re.match(r'\w+', content).group(0)
-        nodelist = parser.parse_nodelist({'endblock'})
+        name = re.match(r"\w+", content).group(0)
+        nodelist = parser.parse_nodelist({"endblock"})
         return cls(name, nodelist)
 
     def render(self, context, output):
@@ -448,12 +444,12 @@ class BlockTag(BlockNode, name='block'):
         self._render()
 
     def _render(self):
-        block_context = getattr(self.context, 'block_context', None)
+        block_context = getattr(self.context, "block_context", None)
         if not block_context:
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        with self.context.push({'block': self}):
+        with self.context.push({"block": self}):
             block.nodelist.render(self.context, self.output)
         if block_context:
             block_context[self.block_name].appendleft(block)
@@ -461,22 +457,21 @@ class BlockTag(BlockNode, name='block'):
     @property
     def super(self):
         self._render()
-        return ''
+        return ""
 
 
-class EndBlockTag(BlockNode, name='endblock'):
+class EndBlockTag(BlockNode, name="endblock"):
     pass
 
 
-class WithTag(BlockNode, name='with'):
-
+class WithTag(BlockNode, name="with"):
     def __init__(self, kwargs, nodelist):
         self.kwargs, self.nodelist = kwargs, nodelist
 
     @classmethod
     def parse(cls, content, parser):
         kwargs = Expression(content).parse_kwargs()
-        nodelist = parser.parse_nodelist({'endwith'})
+        nodelist = parser.parse_nodelist({"endwith"})
         return cls(kwargs, nodelist)
 
     def render(self, context, output):
@@ -485,26 +480,25 @@ class WithTag(BlockNode, name='with'):
             self.nodelist.render(context, output)
 
 
-class EndWithTag(BlockNode, name='endwith'):
+class EndWithTag(BlockNode, name="endwith"):
     pass
 
 
-class CaseTag(BlockNode, name='case'):
-
+class CaseTag(BlockNode, name="case"):
     def __init__(self, term, nodelist):
         self.term, self.nodelist = term, nodelist
 
     @classmethod
     def parse(cls, content, parser):
         term = Expression.parse(content)
-        nodelist = parser.parse_nodelist(['endcase'])
+        nodelist = parser.parse_nodelist(["endcase"])
         else_found = False
         for node in nodelist:
-            if node.name not in {'when', 'else'}:
+            if node.name not in {"when", "else"}:
                 raise SyntaxError(f"Only 'when' and 'else' allowed as children of case. Found: {node}")
-            if node.name == 'else':
+            if node.name == "else":
                 if else_found:
-                    raise SyntaxError('Case tag can only have one else child')
+                    raise SyntaxError("Case tag can only have one else child")
                 else_found = True
         nodelist.sort(key=lambda x: x.name, reverse=True)
         return cls(term, nodelist)
@@ -512,7 +506,7 @@ class CaseTag(BlockNode, name='case'):
     def render(self, context, output):
         value = self.term.resolve(context)
         for node in self.nodelist:
-            if node.name == 'when':
+            if node.name == "when":
                 other = node.term.resolve(context)
             else:
                 other = value
@@ -521,8 +515,7 @@ class CaseTag(BlockNode, name='case'):
                 return
 
 
-class WhenTag(BlockNode, name='when'):
-
+class WhenTag(BlockNode, name="when"):
     def __init__(self, term, nodelist):
         self.term, self.nodelist = term, nodelist
 
@@ -536,5 +529,5 @@ class WhenTag(BlockNode, name='when'):
         self.nodelist.render(context, output)
 
 
-class EndCaseTag(BlockNode, name='endcase'):
+class EndCaseTag(BlockNode, name="endcase"):
     pass

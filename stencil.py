@@ -80,7 +80,6 @@ class Template:
         self.nodelist = self.parse_nodelist([])
 
     def parse(self):
-      try:
         for tok in self.tokens:
             if tok.type == TOK_TEXT:
                 yield TextTag(tok.content)
@@ -91,8 +90,6 @@ class Template:
                 if not m:
                     raise SyntaxError(tok)
                 yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
-      except Exception as ex:
-        raise RuntimeError(f"Error parsing template {self.name}") from ex
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -446,13 +443,25 @@ class BlockTag(BlockNode, name='block'):
         return cls(name, nodelist)
 
     def render(self, context, output):
-        block_context = getattr(context, 'block_context', None)
+        self.context = context
+        self.output = output
+        self._render()
+
+    def _render(self):
+        block_context = getattr(self.context, 'block_context', None)
         if not block_context:
             block = self
         else:
             block = block_context[self.block_name].popleft()
-        with context.push():
-            block.nodelist.render(context, output)
+        with self.context.push({'block': self}):
+            block.nodelist.render(self.context, self.output)
+        if block_context:
+            block_context[self.block_name].appendleft(block)
+
+    @property
+    def super(self):
+        self._render()
+        return ''
 
 
 class EndBlockTag(BlockNode, name='endblock'):

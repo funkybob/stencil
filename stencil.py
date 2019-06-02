@@ -334,13 +334,13 @@ class ForTag(BlockNode, name="for"):
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
-        if self.elselist and not iterable:
-            self.elselist.render(context, output)
-        else:
+        if iterable:
             with context.push():
                 for idx, item in enumerate(iterable):
                     context.update({"loopcounter": idx, self.argname: item})
                     self.nodelist.render(context, output)
+        elif self.elselist:
+            self.elselist.render(context, output)
 
 
 class ElseTag(BlockNode, name="else"):

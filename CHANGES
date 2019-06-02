@@ -1,0 +1,26 @@
+
+4.1.1 (2019-06-02)
+------------------
+
+- Change how for loop handles falsey iterables
+- Make attr lookups in expressions default to ''
+- Improve error reporting for expression parsing
+
+4.1.0 (2019-06-01)
+------------------
+
+- Add support for {{ block.super }}
+
+
+4.0.2 (2019-05-24)
+------------------
+
+- Fix detecting newline tokens in parse_kwargs
+
+4.0.1 (2019-05-23)
+------------------
+
+- roll back 'fix' for context pollution of block_context
+- catch and report parsing errors
+- improve handling of multiple arguments to a call in an expression
+

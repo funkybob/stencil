@@ -270,7 +270,9 @@ class Expression:
 
             return state
 
-        raise SyntaxError(f"Unexpected token: {tok}")
+        raise SyntaxError(
+            f"Error parsing expression {tok.line !r}: Unexpected token {tok.string!r} at position {tok.start[0]}."
+        )
 
 
 class Node:

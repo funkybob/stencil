@@ -151,7 +151,7 @@ class AstAttr:
     def resolve(self, context):
         left = self.left.resolve(context)
 
-        return getattr(left, self.right, '')
+        return getattr(left, self.right, "")
 
 
 class AstCall:

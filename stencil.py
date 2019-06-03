@@ -436,7 +436,10 @@ class BlockTag(BlockNode, name="block"):
 
     @classmethod
     def parse(cls, content, parser):
-        name = re.match(r"\w+", content).group(0)
+        m = re.match(r"\w+", content).group(0)
+        if not m:
+            raise ValueError(f'Invalid block label: {content !r}')
+        name = m.group(0)
         nodelist = parser.parse_nodelist({"endblock"})
         return cls(name, nodelist)
 

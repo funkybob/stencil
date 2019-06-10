@@ -1,19 +1,10 @@
 # -*- coding: utf-8 -*-
-
-import unittest
-
 from setuptools import setup
-
-
-def test_suite():
-    """Return tests suite."""
-    test_loader = unittest.defaultTestLoader
-    return test_loader.discover('tests', pattern='test*.py')
 
 
 setup(
     name='stencil-template',
-    version='4.1.1',
+    version='4.2.0',
     description='A template engine light enough to embed in your project.',
     url='https://github.com/funkybob/stencil/',
     author='Curtis Maloney',
@@ -25,5 +16,4 @@ setup(
     ],
     keywords='template',
     py_modules=['stencil'],
-    test_suite='__main__.test_suite',
 )

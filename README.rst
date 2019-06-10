@@ -5,7 +5,7 @@ A minimalist template engine for Python3
 
 The goal of Stencil is to provide just enough of a template engine in a single file.
 
-Currently weighs in at 531 LoC (393 according to sloccount).
+Currently weighs in at 550 LoC (414 according to sloccount).
 
 Quick Start
 -----------
@@ -20,7 +20,7 @@ Quick Start
 
    .. code-block:: html
 
-      Good morning, {{ escape(name) }}!
+      Good morning, {{ name }}!
 
 3. Write a script to use it
 
@@ -28,12 +28,10 @@ Quick Start
 
       import stencil
 
-      from .utils import escape
-
       loader = stencil.TemplateLoader(['tmpl/'])
 
       t = loader['index.html']
-      c = stencil.Context({'name': 'Ruprect', 'escape': escape})
+      c = stencil.Context({'name': 'Ruprect'})
 
       print t.render(c)
       # Should output "Good morning, Ruprect!"

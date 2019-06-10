@@ -1,3 +1,4 @@
+import html
 import importlib
 import re
 import token
@@ -13,6 +14,13 @@ TOK_BLOCK = "block"
 
 tag_re = re.compile(r"{%\s*(?P<block>.+?)\s*%}|{{\s*(?P<var>.+?)\s*}}|{#\s*(?P<comment>.+?)\s*#}", re.DOTALL)
 Token = namedtuple("Token", "type content")
+
+
+class SafeStr(str):
+    __safe__ = True
+
+    def __str__(self):
+        return self
 
 
 def tokenise(template):
@@ -45,9 +53,10 @@ class TemplateLoader(dict):
 
 
 class Context(ChainMap):
-    def __init__(self, *args):
+    def __init__(self, *args, escape=html.escape):
         super().__init__(*args)
         self.maps.append({"True": True, "False": False, "None": None})
+        self.escape = escape
 
     def push(self, data=None):
         self.maps.insert(0, data or {})
@@ -89,7 +98,7 @@ class Template:
                 m = re.match(r"\w+", tok.content)
                 if not m:
                     raise SyntaxError(tok)
-                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0) :].strip(), self)
+                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -295,7 +304,10 @@ class VarTag(Node):
         self.expr = Expression.parse(content)
 
     def render(self, context, output):
-        output.write(str(self.expr.resolve(context)))
+        value = str(self.expr.resolve(context))
+        if not getattr(value, '__safe__', False):
+            value = context.escape(value)
+        output.write(value)
 
 
 class BlockNode(Node):

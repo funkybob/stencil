@@ -25,5 +25,7 @@ K-T to Py2 just wasn't warranted.
 
 So I figured, why not see how small I can make a functional template language?
 
-Apparently, "under 400 lines of code" is the answer... (it's grown a little
-since then :)
+Apparently, "under 400 lines of code" is the answer...
+
+Since then AWS Lambda picked up support for Python3, and stencil has grown
+considerably - in features, more than code size.

@@ -3,9 +3,11 @@ import importlib
 import re
 import token
 import tokenize
+
 from io import StringIO
 from pathlib import Path
 from collections import defaultdict, deque, namedtuple, ChainMap
+from typing import Dict, Iterable
 
 TOK_COMMENT = "comment"
 TOK_TEXT = "text"
@@ -311,8 +313,8 @@ class VarTag(Node):
 
 
 class BlockNode(Node):
-    __tags__ = {}
-    child_nodelists = ("nodelist",)
+    __tags__ : Dict[str, BlockNode] = {}
+    child_nodelists: Iterable[str] = ("nodelist",)
 
     def __init_subclass__(cls, *, name):
         super().__init_subclass__()

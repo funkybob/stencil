@@ -408,8 +408,8 @@ class IncludeTag(BlockNode, name="include"):
         name = self.template_name.resolve(context)
         tmpl = self.loader[name]
         kwargs = {key: expr.resolve(context) for key, expr in self.kwargs.items()}
-        with context.push(kwargs):
-            tmpl.render(context, output)
+        ctx = context.new_child(kwargs)
+        tmpl.render(ctx, output)
 
 
 class LoadTag(BlockNode, name="load"):

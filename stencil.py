@@ -313,7 +313,7 @@ class VarTag(Node):
 
 
 class BlockNode(Node):
-    __tags__ : Dict[str, BlockNode] = {}
+    __tags__ : Dict[str, 'BlockNode'] = {}
     child_nodelists: Iterable[str] = ("nodelist",)
 
     def __init_subclass__(cls, *, name):

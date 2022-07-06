@@ -272,10 +272,7 @@ class Expression:
                         self.next()
 
                     if self.current.exact_type != token.RPAR:
-                        raise SyntaxError(f"Expected ( but found {self.current}")
-
-                    self.next()
-
+                        raise SyntaxError(f"Expected ) but found {self.current}")
                 else:
                     break
 

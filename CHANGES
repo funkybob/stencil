@@ -1,3 +1,8 @@
+4.2.2 (2022-07-07)
+------------------
+
+- Fixed parsing of functions that prevented function calls as arguments
+
 4.2.1 (2019-08-06)
 ------------------
 

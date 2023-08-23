@@ -1,0 +1,31 @@
+[project]
+name = "stencil-template"
+version = "4.2.2"
+description = "A template engine light enough to embed in your project."
+readme = "README.rst"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Curtis Maloney", email = "curtis@tinbrain.net" }
+]
+keywords = [
+    "template",
+]
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/funkybob/stencil/"
+Documentation = "https://stencil-templates.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+test = [
+    "pylint",
+    "isort",
+    "pytest",
+]
+
+[tools.pylint]
+max-line-length = 120

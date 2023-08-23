@@ -3,10 +3,9 @@ import importlib
 import re
 import token
 import tokenize
-
+from collections import ChainMap, defaultdict, deque, namedtuple
 from io import StringIO
 from pathlib import Path
-from collections import defaultdict, deque, namedtuple, ChainMap
 from typing import Dict, Iterable
 
 TOK_COMMENT = "comment"

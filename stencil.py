@@ -20,19 +20,19 @@ Token = namedtuple("Token", "type content")
 class SafeStr(str):
     __safe__ = True
 
-    def __str__(self):
+    def __str__(self): # pylint: disable=invalid-str-returned
         return self
 
 
 def tokenise(template):
     upto = 0
-    for m in tag_re.finditer(template):
-        start, end = m.span()
+    for match in tag_re.finditer(template):
+        start, end = match.span()
         if upto < start:
             yield Token(TOK_TEXT, template[upto:start])
         upto = end
-        mode = m.lastgroup
-        yield Token(mode, m[mode].strip())
+        mode = match.lastgroup
+        yield Token(mode, match[mode].strip())
     if upto < len(template):
         yield Token(TOK_TEXT, template[upto:])
 
@@ -66,7 +66,7 @@ class Context(ChainMap):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, tb):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.maps.pop(0)
 
 
@@ -96,10 +96,10 @@ class Template:
             elif tok.type == TOK_VAR:
                 yield VarTag(tok.content)
             elif tok.type == TOK_BLOCK:
-                m = re.match(r"\w+", tok.content)
-                if not m:
+                match = re.match(r"\w+", tok.content)
+                if not match:
                     raise SyntaxError(tok)
-                yield BlockNode.__tags__[m.group(0)].parse(tok.content[m.end(0):].strip(), self)
+                yield BlockNode.__tags__[match.group(0)].parse(tok.content[match.end(0):].strip(), self)
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -110,9 +110,10 @@ class Template:
                 node = next(self.parse())
         except StopIteration:
             node = None
-        nodelist.endnode = node
+        nodelist.endnode = node  # pylint: disable=attribute-defined-outside-init
         return nodelist
 
+    # pylint: disable-next=inconsistent-return-statements
     def render(self, context, output=None):
         if not isinstance(context, Context):
             context = Context(context)
@@ -129,7 +130,7 @@ class AstLiteral:
     def __init__(self, arg):
         self.arg = arg
 
-    def resolve(self, context):
+    def resolve(self, context):  # pylint: disable=unused-argument
         return self.arg
 
 
@@ -189,12 +190,12 @@ class Expression:
         return self.current
 
     @staticmethod
-    def parse(s):
-        p = Expression(s)
-        result = p._parse()
+    def parse(src):
+        parser = Expression(src)
+        result = parser._parse()  # pylint: disable=protected-access
 
-        if p.current.exact_type not in (token.NEWLINE, token.ENDMARKER):
-            raise SyntaxError(f"Parse ended unexpectedly: {p.current}")
+        if parser.current.exact_type not in (token.NEWLINE, token.ENDMARKER):
+            raise SyntaxError(f"Parse ended unexpectedly: {parser.current}")
 
         return result
 
@@ -217,17 +218,17 @@ class Expression:
                 raise SyntaxError(f"Expected =, found {tok}")
             tok = self.next()
 
-            kwargs[name] = self._parse()
+            kwargs[name] = self._parse()  # pylint: disable=protected-access
 
             tok = self.next()
 
         return kwargs
 
-    def _parse(self):
+    def _parse(self):  # pylint: disable=inconsistent-return-statements
         tok = self.current
 
         if tok.exact_type in (token.ENDMARKER, token.COMMA):
-            return  # TODO
+            return  # TODO  pylint: disable=fixme
 
         if tok.exact_type == token.STRING:
             self.next()
@@ -319,7 +320,7 @@ class BlockNode(Node):
         return cls
 
     @classmethod
-    def parse(cls, content, parser):
+    def parse(cls, content, parser):  # pylint: disable=unused-argument
         return cls(content)
 
     def nodes_by_type(self, node_type):
@@ -398,7 +399,7 @@ class IncludeTag(BlockNode, name="include"):
         if parser.loader is None:
             raise RuntimeError("Can't use {% include %} without a bound Loader")
         tokens = Expression(content)
-        template_name = tokens._parse()
+        template_name = tokens._parse()  # pylint: disable=protected-access
         kwargs = tokens.parse_kwargs()
         return cls(template_name, kwargs, parser.loader)
 
@@ -443,13 +444,14 @@ class ExtendsTag(BlockNode, name="extends"):
 class BlockTag(BlockNode, name="block"):
     def __init__(self, name, nodelist):
         self.block_name, self.nodelist = name, nodelist
+        self.context = self.output = None
 
     @classmethod
     def parse(cls, content, parser):
-        m = re.match(r"\w+", content)
-        if not m:
+        match = re.match(r"\w+", content)
+        if not match:
             raise ValueError(f'Invalid block label: {content !r}')
-        name = m.group(0)
+        name = match.group(0)
         nodelist = parser.parse_nodelist({"endblock"})
         return cls(name, nodelist)
 
@@ -459,7 +461,7 @@ class BlockTag(BlockNode, name="block"):
         self._render()
 
     def _render(self):
-        block_context = getattr(self.context, "block_context", None)
+        block_context = getattr(self.context, "block_context", {})
         if not block_context:
             block = self
         else:

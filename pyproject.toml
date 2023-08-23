@@ -27,5 +27,15 @@ test = [
     "pytest",
 ]
 
-[tools.pylint]
+[tool.pylint]
 max-line-length = 120
+
+[tool.pylint."message control"]
+disable = [
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring",
+    "super-init-not-called",
+    "too-few-public-methods",
+    "too-many-branches",
+]

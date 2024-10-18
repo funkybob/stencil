@@ -1,9 +1,11 @@
 [project]
 name = "stencil-template"
-version = "4.2.2"
 description = "A template engine light enough to embed in your project."
+
 readme = "README.rst"
-license = { file = "LICENSE" }
+
+license.text = "MIT"
+
 authors = [
     { name = "Curtis Maloney", email = "curtis@tinbrain.net" }
 ]
@@ -16,26 +18,58 @@ classifiers=[
     "Programming Language :: Python :: 3",
 ]
 
+dynamic = ["version"]
+
 [project.urls]
 Repository = "https://github.com/funkybob/stencil/"
 Documentation = "https://stencil-templates.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 test = [
-    "pylint",
-    "isort",
+    "ruff",
     "pytest",
+    "coverage",
 ]
 
-[tool.pylint]
-max-line-length = 120
+[tool.setuptools.dynamic]
+version.attr = "stencil.__version__"
 
-[tool.pylint."message control"]
-disable = [
-    "missing-class-docstring",
-    "missing-function-docstring",
-    "missing-module-docstring",
-    "super-init-not-called",
-    "too-few-public-methods",
-    "too-many-branches",
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 119
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    'E',
+    'F',
+    'W',
+    'I', # isort
+    'N',
+    'UP',
+    'S', # bandit (security)
+    'A', # builtins
+    'C', # commas
+    'C4', # comprehensions
+    'DTZ', # datetimez
+    'DJ', # django
+    'ISC', # implicit string concat
+    'PIE',
+    'ARG', # unused arguments
+    'PL', # pylint
+    'FLY', # f-string usages
+    'PERF',
+    'RUF', # ruff specific
+]
+
+ignore = [
+    "ISC001", # conflicts with formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/*" = [
+    'S101', # Ignore asserts in tests
 ]

@@ -4,9 +4,12 @@ import re
 import token
 import tokenize
 from collections import ChainMap, defaultdict, deque, namedtuple
+from collections.abc import Iterable
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import ClassVar
+
+__version__ = "4.2.3"
 
 TOK_COMMENT = "comment"
 TOK_TEXT = "text"
@@ -20,7 +23,7 @@ Token = namedtuple("Token", "type content")
 class SafeStr(str):
     __safe__ = True
 
-    def __str__(self): # pylint: disable=invalid-str-returned
+    def __str__(self):
         return self
 
 
@@ -99,7 +102,7 @@ class Template:
                 match = re.match(r"\w+", tok.content)
                 if not match:
                     raise SyntaxError(tok)
-                yield BlockNode.__tags__[match.group(0)].parse(tok.content[match.end(0):].strip(), self)
+                yield BlockNode.__tags__[match.group(0)].parse(tok.content[match.end(0) :].strip(), self)
 
     def parse_nodelist(self, ends):
         nodelist = Nodelist()
@@ -110,10 +113,9 @@ class Template:
                 node = next(self.parse())
         except StopIteration:
             node = None
-        nodelist.endnode = node  # pylint: disable=attribute-defined-outside-init
+        nodelist.endnode = node
         return nodelist
 
-    # pylint: disable-next=inconsistent-return-statements
     def render(self, context, output=None):
         if not isinstance(context, Context):
             context = Context(context)
@@ -126,27 +128,28 @@ class Template:
             return dest.getvalue()
 
 
-class AstLiteral:
+class AstUnary:
     def __init__(self, arg):
         self.arg = arg
 
-    def resolve(self, context):  # pylint: disable=unused-argument
+
+class AstLiteral(AstUnary):
+    def resolve(self, _context):
         return self.arg
 
 
-class AstContext:
-    def __init__(self, arg):
-        self.arg = arg
-
+class AstContext(AstUnary):
     def resolve(self, context):
         return context.get(self.arg, "")
 
 
-class AstLookup:
+class AstBinary:
     def __init__(self, left, right):
         self.left = left
         self.right = right
 
+
+class AstLookup(AstBinary):
     def resolve(self, context):
         left = self.left.resolve(context)
         right = self.right.resolve(context)
@@ -154,11 +157,7 @@ class AstLookup:
         return left[right]
 
 
-class AstAttr:
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
+class AstAttr(AstBinary):
     def resolve(self, context):
         left = self.left.resolve(context)
 
@@ -192,7 +191,7 @@ class Expression:
     @staticmethod
     def parse(src):
         parser = Expression(src)
-        result = parser._parse()  # pylint: disable=protected-access
+        result = parser._parse()
 
         if parser.current.exact_type not in (token.NEWLINE, token.ENDMARKER):
             raise SyntaxError(f"Parse ended unexpectedly: {parser.current}")
@@ -218,50 +217,33 @@ class Expression:
                 raise SyntaxError(f"Expected =, found {tok}")
             tok = self.next()
 
-            kwargs[name] = self._parse()  # pylint: disable=protected-access
+            kwargs[name] = self._parse()
 
             tok = self.next()
 
         return kwargs
 
-    def _parse(self):  # pylint: disable=inconsistent-return-statements
-        tok = self.current
+    def parse_expression(self, tok):
+        state = AstContext(tok.string)
 
-        if tok.exact_type in (token.ENDMARKER, token.COMMA):
-            return  # TODO  pylint: disable=fixme
+        while True:
+            tok = self.next()
 
-        if tok.exact_type == token.STRING:
-            self.next()
-            return AstLiteral(tok.string[1:-1])
-
-        if tok.exact_type == token.NUMBER:
-            self.next()
-            try:
-                value = int(tok.string)
-            except ValueError:
-                value = float(tok.string)
-            return AstLiteral(value)
-
-        if tok.exact_type == token.NAME:
-            state = AstContext(tok.string)
-
-            while True:
-                tok = self.next()
-
-                if tok.exact_type == token.DOT:
+            match tok.exact_type:
+                case token.DOT:
                     tok = self.next()
                     if tok.exact_type != token.NAME:
                         raise SyntaxError(f"Invalid attr lookup: {tok}")
                     state = AstAttr(state, tok.string)
 
-                elif tok.exact_type == token.LSQB:
+                case token.LSQB:
                     self.next()
                     right = self._parse()
                     state = AstLookup(state, right)
                     if self.current.exact_type != token.RSQB:
                         raise SyntaxError(f"Expected ] but found {self.current}")
 
-                elif tok.exact_type == token.LPAR:
+                case token.LPAR:
                     state = AstCall(state)
                     self.next()
                     while self.current.exact_type != token.RPAR:
@@ -273,10 +255,33 @@ class Expression:
 
                     if self.current.exact_type != token.RPAR:
                         raise SyntaxError(f"Expected ) but found {self.current}")
-                else:
+
+                case _:
                     break
 
-            return state
+        return state
+
+    def _parse(self):
+        tok = self.current
+
+        match tok.exact_type:
+            case token.ENDMARKER | token.COMMA:
+                return  # TODO
+
+            case token.STRING:
+                self.next()
+                return AstLiteral(tok.string[1:-1])
+
+            case token.NUMBER:
+                self.next()
+                try:
+                    value = int(tok.string)
+                except ValueError:
+                    value = float(tok.string)
+                return AstLiteral(value)
+
+            case token.NAME:
+                return self.parse_expression(tok)
 
         raise SyntaxError(
             f"Error parsing expression {tok.line !r}: Unexpected token {tok.string!r} at position {tok.start[0]}."
@@ -290,11 +295,11 @@ class Node:
         self.content = content
 
     def render(self, context, output):
-        pass  # pragma: no cover
+        pass
 
 
 class TextTag(Node):
-    def render(self, context, output):
+    def render(self, _context, output):
         output.write(self.content)
 
 
@@ -304,13 +309,13 @@ class VarTag(Node):
 
     def render(self, context, output):
         value = str(self.expr.resolve(context))
-        if not getattr(value, '__safe__', False):
+        if not getattr(value, "__safe__", False):
             value = context.escape(value)
         output.write(value)
 
 
 class BlockNode(Node):
-    __tags__ : Dict[str, 'BlockNode'] = {}
+    __tags__: ClassVar[dict[str, "BlockNode"]] = {}
     child_nodelists: Iterable[str] = ("nodelist",)
 
     def __init_subclass__(cls, *, name):
@@ -320,7 +325,7 @@ class BlockNode(Node):
         return cls
 
     @classmethod
-    def parse(cls, content, parser):  # pylint: disable=unused-argument
+    def parse(cls, content, _parser):
         return cls(content)
 
     def nodes_by_type(self, node_type):
@@ -334,14 +339,14 @@ class ForTag(BlockNode, name="for"):
     child_nodelists = ("nodelist", "elselist")
 
     def __init__(self, argname, iterable, nodelist, elselist):
-        self.argname, self.iterable, self.nodelist, self.elselist = argname, iterable, nodelist, elselist
+        self.argname, self.iterable, self.nodelist, self.elselist = argname, iterable, nodelist, elselist  # fmt: skip
 
     @classmethod
     def parse(cls, content, parser):
         argname, iterable = content.split(" in ", 1)
         nodelist = parser.parse_nodelist({"endfor", "else"})
-        elselist = parser.parse_nodelist({"endfor"}) if nodelist.endnode.name == "else" else None
-        return cls(argname.strip(), Expression.parse(iterable.strip()), nodelist, elselist)
+        elselist = parser.parse_nodelist({"endfor"}) if nodelist.endnode.name == "else" else None  # fmt: skip
+        return cls(argname.strip(), Expression.parse(iterable.strip()), nodelist, elselist)  # fmt: skip
 
     def render(self, context, output):
         iterable = self.iterable.resolve(context)
@@ -373,7 +378,7 @@ class IfTag(BlockNode, name="if"):
     @classmethod
     def parse(cls, content, parser):
         nodelist = parser.parse_nodelist({"endif", "else"})
-        elselist = parser.parse_nodelist({"endif"}) if nodelist.endnode.name == "else" else None
+        elselist = (parser.parse_nodelist({"endif"}) if nodelist.endnode.name == "else" else None)  # fmt: skip
         return cls(content, nodelist, elselist)
 
     def render(self, context, output):
@@ -399,7 +404,7 @@ class IncludeTag(BlockNode, name="include"):
         if parser.loader is None:
             raise RuntimeError("Can't use {% include %} without a bound Loader")
         tokens = Expression(content)
-        template_name = tokens._parse()  # pylint: disable=protected-access
+        template_name = tokens._parse()
         kwargs = tokens.parse_kwargs()
         return cls(template_name, kwargs, parser.loader)
 
@@ -413,7 +418,7 @@ class IncludeTag(BlockNode, name="include"):
 
 class LoadTag(BlockNode, name="load"):
     @classmethod
-    def parse(cls, content, parser):
+    def parse(cls, content, _parser):
         importlib.import_module(content)
         return cls(None)
 
@@ -450,7 +455,7 @@ class BlockTag(BlockNode, name="block"):
     def parse(cls, content, parser):
         match = re.match(r"\w+", content)
         if not match:
-            raise ValueError(f'Invalid block label: {content !r}')
+            raise ValueError(f"Invalid block label: {content !r}")
         name = match.group(0)
         nodelist = parser.parse_nodelist({"endblock"})
         return cls(name, nodelist)
@@ -512,7 +517,7 @@ class CaseTag(BlockNode, name="case"):
         else_found = False
         for node in nodelist:
             if node.name not in {"when", "else"}:
-                raise SyntaxError(f"Only 'when' and 'else' allowed as children of case. Found: {node}")
+                raise SyntaxError(f"Only 'when' and 'else' allowed as children of case. Found: {node}")  # fmt: skip
             if node.name == "else":
                 if else_found:
                     raise SyntaxError("Case tag can only have one else child")

@@ -33,7 +33,7 @@ Quick Start
       t = loader['index.html']
       c = stencil.Context({'name': 'Ruprect'})
 
-      print t.render(c)
+      print(t.render(c))
       # Should output "Good morning, Ruprect!"
 
 
